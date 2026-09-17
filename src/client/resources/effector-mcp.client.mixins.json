@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "eikarna.effector.mixin.client",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ExampleClientMixin",
+		"ChatMessageCaptureMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
