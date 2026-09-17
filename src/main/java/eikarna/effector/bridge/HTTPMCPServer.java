@@ -1,0 +1,602 @@
+package eikarna.effector.bridge;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import eikarna.effector.action.IActionQueueController;
+import eikarna.effector.action.ServerActionQueueController;
+import eikarna.effector.action.IContainerController;
+import eikarna.effector.action.IPlayerActionController;
+import eikarna.effector.action.ServerContainerController;
+import eikarna.effector.action.ServerPlayerActionController;
+import eikarna.effector.command.ICommandExecutor;
+import eikarna.effector.config.MCPConfig;
+import eikarna.effector.server.MCPProtocol;
+import eikarna.effector.utils.IPlayerInfoProvider;
+import eikarna.effector.utils.IBlockScanner;
+import eikarna.effector.utils.IScreenshotUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public class HTTPMCPServer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(HTTPMCPServer.class);
+    private static final Gson GSON = new Gson();
+    
+    private final MCPConfig config;
+    private final ICommandExecutor commandExecutor;
+    private final IPlayerInfoProvider playerInfoProvider;
+    private final IBlockScanner blockScanner;
+    private final IScreenshotUtils screenshotUtils;
+    private final boolean screenshotToolEnabled;
+    private final IPlayerActionController playerActionController;
+    private final IContainerController containerController;
+    private final IActionQueueController actionQueueController;
+    private final AtomicBoolean running = new AtomicBoolean(false);
+    private HttpServer httpServer;
+    private ExecutorService executor;
+    
+    public HTTPMCPServer(MCPConfig config, ICommandExecutor commandExecutor, IPlayerInfoProvider playerInfoProvider, IBlockScanner blockScanner, IScreenshotUtils screenshotUtils) {
+        this(config, commandExecutor, playerInfoProvider, blockScanner, screenshotUtils, true);
+    }
+
+    public HTTPMCPServer(
+        MCPConfig config,
+        ICommandExecutor commandExecutor,
+        IPlayerInfoProvider playerInfoProvider,
+        IBlockScanner blockScanner,
+        IScreenshotUtils screenshotUtils,
+        boolean screenshotToolEnabled
+    ) {
+        this(config, commandExecutor, playerInfoProvider, blockScanner, screenshotUtils, null, null, null, screenshotToolEnabled);
+    }
+
+    public HTTPMCPServer(
+        MCPConfig config,
+        ICommandExecutor commandExecutor,
+        IPlayerInfoProvider playerInfoProvider,
+        IBlockScanner blockScanner,
+        IScreenshotUtils screenshotUtils,
+        IPlayerActionController playerActionController,
+        IContainerController containerController,
+        boolean screenshotToolEnabled
+    ) {
+        this(config, commandExecutor, playerInfoProvider, blockScanner, screenshotUtils, playerActionController, containerController, null, screenshotToolEnabled);
+    }
+
+    public HTTPMCPServer(
+        MCPConfig config,
+        ICommandExecutor commandExecutor,
+        IPlayerInfoProvider playerInfoProvider,
+        IBlockScanner blockScanner,
+        IScreenshotUtils screenshotUtils,
+        IPlayerActionController playerActionController,
+        IContainerController containerController,
+        IActionQueueController actionQueueController,
+        boolean screenshotToolEnabled
+    ) {
+        this.config = config;
+        this.commandExecutor = commandExecutor;
+        this.playerInfoProvider = playerInfoProvider;
+        this.blockScanner = blockScanner;
+        this.screenshotUtils = screenshotUtils;
+        this.playerActionController = playerActionController != null ? playerActionController : new ServerPlayerActionController();
+        this.containerController = containerController != null ? containerController : new ServerContainerController();
+        this.actionQueueController = actionQueueController != null ? actionQueueController : new ServerActionQueueController();
+        this.screenshotToolEnabled = screenshotToolEnabled;
+    }
+    
+    public void start() throws IOException {
+        if (running.get()) {
+            return;
+        }
+        
+        running.set(true);
+        
+        InetSocketAddress address = new InetSocketAddress(
+            config.getServer().getHost(), 
+            config.getServer().getPort()
+        );
+        
+        httpServer = HttpServer.create(address, 0);
+        httpServer.createContext("/mcp", new MCPHandler());
+        
+        executor = Executors.newCachedThreadPool();
+        httpServer.setExecutor(executor);
+        
+        httpServer.start();
+        
+        LOGGER.info("HTTP MCP Server started on http://{}:{}/mcp", 
+            config.getServer().getHost(), 
+            config.getServer().getPort());
+    }
+    
+    public void stop() {
+        if (running.get()) {
+            running.set(false);
+            
+            if (httpServer != null) {
+                httpServer.stop(0);
+            }
+            
+            if (executor != null) {
+                executor.shutdown();
+            }
+            
+            LOGGER.info("HTTP MCP Server stopped");
+        }
+    }
+    
+    public int getPort() {
+        return config.getServer().getPort();
+    }
+    
+    private class MCPHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            try {
+                // Log request method and body
+                String method = exchange.getRequestMethod();
+                String accept = exchange.getRequestHeaders().getFirst("Accept");
+                String requestBody = "";
+                if ("POST".equals(method)) {
+                    requestBody = readRequestBody(exchange);
+                }
+                LOGGER.info("MCPHandler received request - Method: {}, Accept: {}, Body: {}", method, accept, requestBody);
+                
+                // Validate Origin header for security (basic check)
+                String origin = exchange.getRequestHeaders().getFirst("Origin");
+                if (origin != null && !isAllowedOrigin(origin)) {
+                    sendErrorResponse(exchange, 403, "Forbidden origin", null);
+                    return;
+                }
+                
+                if ("POST".equals(method)) {
+                    handlePostRequest(exchange, requestBody);
+                } else if ("GET".equals(method)) {
+                    handleGetRequest(exchange);
+                } else {
+                    sendErrorResponse(exchange, 405, "Method not allowed", null);
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error handling MCP request", e);
+                sendErrorResponse(exchange, 500, "Internal server error", null);
+            }
+        }
+        
+        private void handlePostRequest(HttpExchange exchange, String requestBody) throws IOException {
+            // Check Accept headers
+            String accept = exchange.getRequestHeaders().getFirst("Accept");
+            if (accept == null || (!accept.contains("application/json") && !accept.contains("text/event-stream"))) {
+                sendErrorResponse(exchange, 400, "Invalid Accept header", null);
+                return;
+            }
+            
+            try {
+                JsonObject request = JsonParser.parseString(requestBody).getAsJsonObject();
+                LOGGER.info("Received HTTP MCP request: {}", requestBody);
+                
+                JsonObject response = handleMCPRequest(request);
+                
+                if (response != null) {
+                    LOGGER.info("Sending HTTP MCP response: {}", response);
+                    sendJsonResponse(exchange, 200, response);
+                } else {
+                    // Notification - no response needed
+                    sendJsonResponse(exchange, 202, new JsonObject());
+                }
+                
+            } catch (Exception e) {
+                LOGGER.error("Error processing MCP request: {}", requestBody, e);
+                Integer requestId = null;
+                try {
+                    JsonObject request = JsonParser.parseString(requestBody).getAsJsonObject();
+                    requestId = request.has("id") ? request.get("id").getAsInt() : null;
+                } catch (Exception ignored) {
+                    // Unable to parse request ID
+                }
+                JsonObject errorResponse = createErrorResponse("Error processing request: " + e.getMessage(), requestId);
+                sendJsonResponse(exchange, 400, errorResponse);
+            }
+        }
+        
+        private void handleGetRequest(HttpExchange exchange) throws IOException {
+            // Check for SSE support
+            String accept = exchange.getRequestHeaders().getFirst("Accept");
+            if (accept != null && accept.contains("text/event-stream")) {
+                // For now, we'll just send a simple response indicating SSE is not fully implemented
+                // In a full implementation, this would open an SSE stream
+                sendErrorResponse(exchange, 405, "Server-Sent Events not implemented", null);
+            } else {
+                sendErrorResponse(exchange, 400, "GET requests require text/event-stream Accept header", null);
+            }
+        }
+        
+        private String readRequestBody(HttpExchange exchange) throws IOException {
+            try (InputStream inputStream = exchange.getRequestBody();
+                 BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+                
+                StringBuilder body = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    body.append(line);
+                }
+                return body.toString();
+            }
+        }
+        
+        private void sendJsonResponse(HttpExchange exchange, int statusCode, JsonObject response) throws IOException {
+            exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Accept, Origin");
+            
+            byte[] responseBytes = GSON.toJson(response).getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(statusCode, responseBytes.length);
+            
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(responseBytes);
+            }
+        }
+        
+        private void sendErrorResponse(HttpExchange exchange, int statusCode, String message, Integer requestId) throws IOException {
+            JsonObject errorResponse = createErrorResponse(message, requestId);
+            sendJsonResponse(exchange, statusCode, errorResponse);
+        }
+        
+        private boolean isAllowedOrigin(String origin) {
+            // Basic localhost and file protocol check
+            return origin.startsWith("http://localhost") || 
+                   origin.startsWith("https://localhost") ||
+                   origin.startsWith("http://127.0.0.1") ||
+                   origin.startsWith("https://127.0.0.1") ||
+                   origin.equals("null") || // file:// protocol
+                   origin.startsWith("file://");
+        }
+    }
+    
+    private JsonObject handleMCPRequest(JsonObject request) {
+        String method = request.get("method").getAsString();
+        JsonObject params = request.has("params") ? request.getAsJsonObject("params") : new JsonObject();
+        Integer requestId = request.has("id") ? request.get("id").getAsInt() : null;
+        
+        // Handle notifications - no response needed
+        if (method.startsWith("notifications/")) {
+            LOGGER.info("Received notification: {}", method);
+            return null;
+        }
+        
+        JsonObject result;
+        switch (method) {
+            case "initialize":
+                result = handleInitialize(params);
+                break;
+            case "ping":
+                result = handlePing();
+                break;
+            case "tools/list":
+                result = handleToolsList();
+                break;
+            case "tools/call":
+                result = handleToolsCall(params);
+                break;
+            default:
+                return createErrorResponse("Unknown method: " + method, requestId);
+        }
+        
+        return createSuccessResponse(result, requestId);
+    }
+    
+    private JsonObject handleInitialize(JsonObject params) {
+        JsonObject response = new JsonObject();
+        
+        // Check client's protocol version and respond accordingly
+        String currentProtocolVersion = "2025-06-18"; // default
+        if (params.has("protocolVersion")) {
+            String clientVersion = params.get("protocolVersion").getAsString();
+            if ("2025-03-26".equals(clientVersion)) {
+                currentProtocolVersion = "2025-03-26";
+            }
+        }
+        response.addProperty("protocolVersion", currentProtocolVersion);
+        
+        JsonObject capabilities = new JsonObject();
+        capabilities.add("tools", new JsonObject());
+        capabilities.add("resources", new JsonObject());
+        response.add("capabilities", capabilities);
+        
+        JsonObject serverInfo = new JsonObject();
+        serverInfo.addProperty("name", "minecraft-mcp-http");
+        serverInfo.addProperty("version", "1.0.0");
+        response.add("serverInfo", serverInfo);
+        
+        return response;
+    }
+    
+    private JsonObject handlePing() {
+        JsonObject response = new JsonObject();
+        response.addProperty("status", "pong");
+        return response;
+    }
+    
+    private JsonObject handleToolsList() {
+        JsonObject response = new JsonObject();
+        response.add("tools", MCPProtocol.getToolsListResponse(config, screenshotToolEnabled));
+        return response;
+    }
+    
+    private JsonObject wrapToolResult(JsonObject result) {
+        if (result.has("isError") && result.get("isError").getAsBoolean()) {
+            String errorMsg = result.has("error") ? result.get("error").getAsString() : "Tool execution failed";
+            return MCPProtocol.createErrorResponse(errorMsg, null);
+        }
+        return MCPProtocol.createSuccessResponse(result.toString());
+    }
+
+    private JsonObject handleToolsCall(JsonObject params) {
+        try {
+            String toolName = params.get("name").getAsString();
+            JsonObject arguments = params.getAsJsonObject("arguments");
+
+            switch (toolName) {
+                case "execute_actions" -> {
+                    return wrapToolResult(actionQueueController.executeActions(arguments));
+                }
+                case "cancel_actions" -> {
+                    return wrapToolResult(actionQueueController.cancelActions());
+                }
+                case "get_queue_status" -> {
+                    return wrapToolResult(actionQueueController.getQueueStatus());
+                }
+                case "execute_commands" -> {
+                    return commandExecutor.executeCommands(arguments);
+                }
+                case "get_player_info" -> {
+                    return handleGetPlayerInfo();
+                }
+                case "scan_chunk" -> {
+                    return wrapToolResult(blockScanner.scanChunk(arguments));
+                }
+                case "get_blocks_in_area" -> {
+                    return handleGetBlocksInArea(arguments);
+                }
+                case "take_screenshot" -> {
+                    if (!screenshotToolEnabled) {
+                        return MCPProtocol.createErrorResponse("Tool not available in dedicated server mode", null);
+                    }
+                    return handleTakeScreenshot(arguments);
+                }
+                case "set_player_look" -> {
+                    return wrapToolResult(playerActionController.setLook(arguments));
+                }
+                case "look_at" -> {
+                    return wrapToolResult(playerActionController.lookAt(arguments));
+                }
+                case "interact_block" -> {
+                    return wrapToolResult(playerActionController.interactBlock(arguments));
+                }
+                case "attack_block" -> {
+                    return wrapToolResult(playerActionController.attackBlock(arguments));
+                }
+                case "swap_hands" -> {
+                    return wrapToolResult(playerActionController.swapHands());
+                }
+                case "use_item" -> {
+                    return wrapToolResult(playerActionController.useItem(arguments));
+                }
+                case "select_slot" -> {
+                    return wrapToolResult(playerActionController.selectSlot(arguments));
+                }
+                case "get_open_container" -> {
+                    return wrapToolResult(containerController.getOpenContainer());
+                }
+                case "click_container_button" -> {
+                    return wrapToolResult(containerController.clickButton(arguments));
+                }
+                case "click_container_slot" -> {
+                    return wrapToolResult(containerController.clickSlot(arguments));
+                }
+                case "close_container" -> {
+                    return wrapToolResult(containerController.closeContainer());
+                }
+                case null, default -> {
+                    JsonObject error = new JsonObject();
+                    error.addProperty("isError", true);
+                    error.addProperty("error", "Unknown tool: " + toolName);
+                    return error;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error handling tools/call request: {}", e.getMessage());
+            JsonObject error = new JsonObject();
+            error.addProperty("isError", true);
+            error.addProperty("error", "Internal server error: " + e.getMessage());
+            return error;
+        }
+    }
+    
+    private JsonObject handleGetPlayerInfo() {
+        try {
+            JsonObject playerInfo = playerInfoProvider.getPlayerInfo();
+            
+            // Check if there was an error getting player info
+            if (playerInfo.has("error")) {
+                return MCPProtocol.createErrorResponse(playerInfo.get("error").getAsString(), null);
+            }
+            
+            // Create success response with player information
+            return MCPProtocol.createSuccessResponse(playerInfo.toString());
+            
+        } catch (Exception e) {
+            LOGGER.error("Error getting player info: {}", e.getMessage());
+            return MCPProtocol.createErrorResponse("Failed to get player information: " + e.getMessage(), null);
+        }
+    }
+    
+    private JsonObject handleGetBlocksInArea(JsonObject arguments) {
+        try {
+            if (!arguments.has("from") || !arguments.has("to")) {
+                return MCPProtocol.createErrorResponse("Missing required parameters: 'from' and 'to' positions", null);
+            }
+            
+            JsonObject fromPos = arguments.getAsJsonObject("from");
+            JsonObject toPos = arguments.getAsJsonObject("to");
+            
+            // Validate position objects have required coordinates
+            if (!fromPos.has("x") || !fromPos.has("y") || !fromPos.has("z") ||
+                !toPos.has("x") || !toPos.has("y") || !toPos.has("z")) {
+                return MCPProtocol.createErrorResponse("Position objects must contain x, y, z coordinates", null);
+            }
+            
+            int maxAreaSize = config.getServer().getMaxAreaSize();
+            JsonObject result = blockScanner.scanBlocksInArea(fromPos, toPos, maxAreaSize);
+            
+            // Check if there was an error scanning blocks
+            if (result.has("error")) {
+                return MCPProtocol.createErrorResponse(result.get("error").getAsString(), null);
+            }
+            
+            // Create success response with block information
+            return MCPProtocol.createSuccessResponse(result.toString());
+            
+        } catch (Exception e) {
+            LOGGER.error("Error getting blocks in area: {}", e.getMessage());
+            return MCPProtocol.createErrorResponse("Failed to get blocks in area: " + e.getMessage(), null);
+        }
+    }
+
+    private JsonObject handleTakeScreenshot(JsonObject arguments) {
+        CompletableFuture<String> future;
+        try {
+            // Treat null arguments as an empty object
+            JsonObject params = arguments != null ? arguments : new JsonObject();
+            future = takeScreenshotAsync(params);
+        } catch (Exception e) {
+            LOGGER.error("Unexpected error taking screenshot", e);
+            return MCPProtocol.createErrorResponse("Failed to take screenshot: " + e.getMessage(), null);
+        }
+
+        return awaitScreenshotResult(future);
+    }
+
+    JsonObject awaitScreenshotResult(CompletableFuture<String> future) {
+        try {
+            // Wait for screenshot completion (this runs on an executor thread, not the render thread)
+            String base64Data = future.get(config.getServer().getRequestTimeoutMs(), TimeUnit.MILLISECONDS);
+            return MCPProtocol.createImageResponse(base64Data, "image/png");
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            LOGGER.warn("Screenshot capture timed out after {} ms", config.getServer().getRequestTimeoutMs());
+            return MCPProtocol.createErrorResponse(
+                "Screenshot capture timed out after " + config.getServer().getRequestTimeoutMs() + " ms",
+                null
+            );
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            LOGGER.warn("Screenshot capture interrupted");
+            return MCPProtocol.createErrorResponse("Screenshot capture was interrupted", null);
+        } catch (ExecutionException e) {
+            LOGGER.error("Error taking screenshot", e.getCause() != null ? e.getCause() : e);
+            String errorMessage = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+            return MCPProtocol.createErrorResponse("Failed to take screenshot: " + errorMessage, null);
+        } catch (Exception e) {
+            LOGGER.error("Unexpected error taking screenshot", e);
+            return MCPProtocol.createErrorResponse("Failed to take screenshot: " + e.getMessage(), null);
+        }
+    }
+
+    CompletableFuture<String> takeScreenshotAsync(JsonObject params) {
+        return screenshotUtils.takeScreenshot(params);
+    }
+    
+    private JsonObject createSuccessResponse(JsonObject result, Integer requestId) {
+        JsonObject response = new JsonObject();
+        response.addProperty("jsonrpc", "2.0");
+        if (requestId != null) {
+            response.addProperty("id", requestId);
+        }
+        response.add("result", result);
+        return response;
+    }
+    
+    private JsonObject createErrorResponse(String message, Integer requestId) {
+        JsonObject response = new JsonObject();
+        response.addProperty("jsonrpc", "2.0");
+        if (requestId != null) {
+            response.addProperty("id", requestId);
+        }
+        
+        JsonObject error = new JsonObject();
+        error.addProperty("code", -32603); // Internal error
+        error.addProperty("message", message);
+        response.add("error", error);
+        
+        return response;
+    }
+
+    private JsonObject handleResourcesList() {
+        JsonObject response = new JsonObject();
+        com.google.gson.JsonArray resources = new com.google.gson.JsonArray();
+        JsonObject docResource = new JsonObject();
+        docResource.addProperty("uri", "minecraft://docs/agent_handbook.md");
+        docResource.addProperty("name", "Minecraft AI Agent Handbook");
+        docResource.addProperty("description", "Complete guide for AI agents controlling Minecraft via this MCP server");
+        docResource.addProperty("mimeType", "text/markdown");
+        resources.add(docResource);
+        response.add("resources", resources);
+        return response;
+    }
+
+    private JsonObject handleResourcesRead(JsonObject params) {
+        String uri = params.has("uri") ? params.get("uri").getAsString() : "";
+        JsonObject response = new JsonObject();
+        com.google.gson.JsonArray contents = new com.google.gson.JsonArray();
+        
+        if ("minecraft://docs/agent_handbook.md".equals(uri)) {
+            JsonObject item = new JsonObject();
+            item.addProperty("uri", uri);
+            item.addProperty("mimeType", "text/markdown");
+            item.addProperty("text", getAgentHandbookMarkdown());
+            contents.add(item);
+            response.add("contents", contents);
+            return response;
+        } else {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Resource not found: " + uri);
+            return err;
+        }
+    }
+
+    private String getAgentHandbookMarkdown() {
+        return "# Minecraft AI Agent Operating Manual\n\n" +
+            "## 1. Core Principles\n" +
+            "- Always call `get_player_info` first to orient yourself (health, position, facing direction).\n" +
+            "- Use `look_at` or `set_player_look` to rotate camera natively without mouse raycast bugs.\n" +
+            "- Use `interact_block` to open containers, flip switches, or place blocks.\n\n" +
+            "## 2. Chest & Inventory Workflows\n" +
+            "1. Aim camera at chest: `look_at(chestX, chestY, chestZ)`\n" +
+            "2. Right click chest: `interact_block(chestX, chestY, chestZ, 'east', 'main_hand')`\n" +
+            "3. Inspect items: `get_open_container()`\n" +
+            "4. Quick-transfer items: `click_container_slot(slotId, button=0, mode='quick_move')`\n" +
+            "5. Close GUI: `close_container()`\n\n" +
+            "## 3. Off-hand / Second Hand Support\n" +
+            "- Call `swap_hands` to swap the held item into your second hand (presses 'F').\n" +
+            "- Call `use_item(hand='off_hand')` to block with a shield or consume items in your second hand.\n" +
+            "- Call `interact_block(..., hand='off_hand')` to place blocks held in your second hand.\n";
+    }
+}
