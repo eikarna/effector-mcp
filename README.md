@@ -65,16 +65,16 @@ Executing camera sweeps and multi-axis rotations synchronized to engine ticks:
 
 ---
 
-## 🛠️ Tool Reference (19 Native Tools)
+## 🛠️ Tool Reference (18 Native Tools)
 
 | Tool Name | Scope | Description |
 | :--- | :---: | :--- |
 | `execute_actions` | Client | **ScratchPad / Macro Runner**: Execute timed movements (`move`), rotations (`look`/`look_at`), interactions (`interact`), item use (`use_item`), and slot selection in one shot. |
 | `cancel_actions` | Client | **Emergency Brake**: Instantly clears queued actions and releases all virtual movement keys. |
 | `get_queue_status` | Client | Returns active action queue status, current action step, and remaining ticks. |
-| `scan_chunk` | Both | Scans voxel chunks (16x16xHeight) with custom radius, altitude bounds, and item/block filters. |
-| `get_blocks_in_area` | Both | Scans a 3D bounding box (up to 128 blocks per axis) and returns compressed region blocks. |
-| `get_player_info` | Both | Returns coordinates, camera yaw/pitch, health, food, armor, air supply, active potion buffs/debuffs, and rich inventory. |
+| `scan_chunk` | Client | Scans voxel chunks (16x16xHeight) with custom radius, altitude bounds, and item/block filters. |
+| `get_blocks_in_area` | Client | Scans a 3D bounding box (up to 128 blocks per axis) and returns compressed region blocks. |
+| `get_player_info` | Client | Returns coordinates, camera yaw/pitch, health, food, armor, air supply, active potion buffs/debuffs, and rich inventory. |
 | `get_open_container` | Client | Reads active GUI container (slots, items, enchantment options, brewing ticks, furnace progress, anvil repair cost). |
 | `click_container_slot`| Client | Simulates mouse clicks (`pickup`, `quick_move`, `swap`, `clone`, `throw`) inside container menus. |
 | `click_container_button`| Client | Simulates button clicks in interactive menus (Enchanting Table options 0-2, Stonecutter, Loom). |
@@ -87,7 +87,6 @@ Executing camera sweeps and multi-axis rotations synchronized to engine ticks:
 | `set_player_look` | Client | Sets absolute camera yaw and pitch angles. |
 | `look_at` | Client | Computes trigonometry and aims camera directly at target coordinates (X, Y, Z). |
 | `take_screenshot` | Client | Captures current viewport / GUI frame as a high-resolution base64 PNG. |
-| `execute_commands` | Both | Dispatches Minecraft slash commands with automatic safety validation and feedback parsing. |
 
 ---
 
