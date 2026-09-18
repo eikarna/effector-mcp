@@ -41,3 +41,7 @@ replay_*.log
 
 .claude
 .roo
+
+# mkdocs
+site/
+.cache/

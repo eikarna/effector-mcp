@@ -1,0 +1,67 @@
+site_name: Effector MCP
+site_description: Autonomous AI Agent MCP Protocol Bridge for Minecraft 26.2
+site_author: eikarna
+site_url: https://eikarna.github.io/effector-mcp/
+repo_url: https://github.com/eikarna/effector-mcp
+repo_name: eikarna/effector-mcp
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+
+nav:
+  - Overview: index.md
+  - Visual Showcase: showcase.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Agent Setup: getting-started/agent-setup.md
+  - Tutorials:
+      - Overview: tutorials/index.md
+      - Camera & Physics Macros: tutorials/camera-and-actions.md
+      - 3x3 Crafting & Containers: tutorials/crafting-and-containers.md
+      - Autonomous Sneak-Bridging: tutorials/autonomous-bridging.md
+      - 3D Voxel Pathfinding: tutorials/pathfinding.md
+      - Perception Radar & Combat: tutorials/combat-and-radar.md
+      - Real-Time SSE Streaming: tutorials/sse-streaming.md
+  - Tool Reference: reference/tools.md
