@@ -637,6 +637,163 @@ public class MCPProtocol {
         navigateToTool.add("inputSchema", navigateToSchema);
         tools.add(navigateToTool);
 
+        // place_block
+        JsonObject placeTool = new JsonObject();
+        placeTool.addProperty("name", "place_block");
+        placeTool.addProperty("description", "Places a block at target coordinates (x, y, z) using item in main_hand or off_hand. Supports sneaking for interactive containers.");
+        JsonObject placeSchema = new JsonObject();
+        placeSchema.addProperty("type", "object");
+        JsonObject placeProps = new JsonObject();
+        JsonObject px = new JsonObject(); px.addProperty("type", "integer"); px.addProperty("description", "Target X coordinate"); placeProps.add("x", px);
+        JsonObject py = new JsonObject(); py.addProperty("type", "integer"); py.addProperty("description", "Target Y coordinate"); placeProps.add("y", py);
+        JsonObject pz = new JsonObject(); pz.addProperty("type", "integer"); pz.addProperty("description", "Target Z coordinate"); placeProps.add("z", pz);
+        JsonObject pFace = new JsonObject(); pFace.addProperty("type", "string"); pFace.addProperty("description", "Block face: up, down, north, south, east, west"); placeProps.add("face", pFace);
+        JsonObject pHand = new JsonObject(); pHand.addProperty("type", "string"); pHand.addProperty("description", "Hand: main_hand, off_hand"); placeProps.add("hand", pHand);
+        JsonObject pSneak = new JsonObject(); pSneak.addProperty("type", "boolean"); pSneak.addProperty("description", "Whether to sneak during placement"); placeProps.add("sneak", pSneak);
+        JsonArray pReq = new JsonArray(); pReq.add("x"); pReq.add("y"); pReq.add("z");
+        placeSchema.add("required", pReq);
+        placeSchema.add("properties", placeProps);
+        placeTool.add("inputSchema", placeSchema);
+        tools.add(placeTool);
+
+        // update_sign
+        JsonObject signTool = new JsonObject();
+        signTool.addProperty("name", "update_sign");
+        signTool.addProperty("description", "Updates the text lines on a placed sign block at target coordinates.");
+        JsonObject signSchema = new JsonObject();
+        signSchema.addProperty("type", "object");
+        JsonObject signProps = new JsonObject();
+        JsonObject sx = new JsonObject(); sx.addProperty("type", "integer"); sx.addProperty("description", "Sign X coordinate"); signProps.add("x", sx);
+        JsonObject sy = new JsonObject(); sy.addProperty("type", "integer"); sy.addProperty("description", "Sign Y coordinate"); signProps.add("y", sy);
+        JsonObject sz = new JsonObject(); sz.addProperty("type", "integer"); sz.addProperty("description", "Sign Z coordinate"); signProps.add("z", sz);
+        JsonObject sSide = new JsonObject(); sSide.addProperty("type", "string"); sSide.addProperty("description", "Side: front, back"); signProps.add("side", sSide);
+        JsonObject sLines = new JsonObject(); sLines.addProperty("type", "array"); sLines.addProperty("description", "Array of up to 4 string lines"); signProps.add("lines", sLines);
+        JsonArray sReq = new JsonArray(); sReq.add("x"); sReq.add("y"); sReq.add("z");
+        signSchema.add("required", sReq);
+        signSchema.add("properties", signProps);
+        signTool.add("inputSchema", signSchema);
+        tools.add(signTool);
+
+        // mine_block
+        JsonObject mineTool = new JsonObject();
+        mineTool.addProperty("name", "mine_block");
+        mineTool.addProperty("description", "Safely mines a block at target coordinates using Baritone builder clear area to prevent ghost blocks.");
+        JsonObject mineSchema = new JsonObject();
+        mineSchema.addProperty("type", "object");
+        JsonObject mineProps = new JsonObject();
+        JsonObject mx = new JsonObject(); mx.addProperty("type", "integer"); mx.addProperty("description", "Block X coordinate"); mineProps.add("x", mx);
+        JsonObject my = new JsonObject(); my.addProperty("type", "integer"); my.addProperty("description", "Block Y coordinate"); mineProps.add("y", my);
+        JsonObject mz = new JsonObject(); mz.addProperty("type", "integer"); mz.addProperty("description", "Block Z coordinate"); mineProps.add("z", mz);
+        JsonObject mWait = new JsonObject(); mWait.addProperty("type", "boolean"); mWait.addProperty("description", "Wait for completion (default: true)"); mineProps.add("wait_completion", mWait);
+        JsonArray mReq = new JsonArray(); mReq.add("x"); mReq.add("y"); mReq.add("z");
+        mineSchema.add("required", mReq);
+        mineSchema.add("properties", mineProps);
+        mineTool.add("inputSchema", mineSchema);
+        tools.add(mineTool);
+
+        // get_block_info
+        JsonObject gbiTool = new JsonObject();
+        gbiTool.addProperty("name", "get_block_info");
+        gbiTool.addProperty("description", "Inspects a single block at (x, y, z), returning blockType, isAir, isSolid, block states, and sign text if applicable.");
+        JsonObject gbiSchema = new JsonObject();
+        gbiSchema.addProperty("type", "object");
+        JsonObject gbiProps = new JsonObject();
+        JsonObject gx = new JsonObject(); gx.addProperty("type", "integer"); gx.addProperty("description", "Block X coordinate"); gbiProps.add("x", gx);
+        JsonObject gy = new JsonObject(); gy.addProperty("type", "integer"); gy.addProperty("description", "Block Y coordinate"); gbiProps.add("y", gy);
+        JsonObject gz = new JsonObject(); gz.addProperty("type", "integer"); gz.addProperty("description", "Block Z coordinate"); gbiProps.add("z", gz);
+        JsonArray gReq = new JsonArray(); gReq.add("x"); gReq.add("y"); gReq.add("z");
+        gbiSchema.add("required", gReq);
+        gbiSchema.add("properties", gbiProps);
+        gbiTool.add("inputSchema", gbiSchema);
+        tools.add(gbiTool);
+
+        // baritone_goto
+        JsonObject bGotoTool = new JsonObject();
+        bGotoTool.addProperty("name", "baritone_goto");
+        bGotoTool.addProperty("description", "Commands Baritone pathfinding to navigate to (x, y, z) with full parkour and obstacle handling.");
+        JsonObject bGotoSchema = new JsonObject();
+        bGotoSchema.addProperty("type", "object");
+        JsonObject bGotoProps = new JsonObject();
+        JsonObject bgx = new JsonObject(); bgx.addProperty("type", "integer"); bgx.addProperty("description", "Target X"); bGotoProps.add("x", bgx);
+        JsonObject bgy = new JsonObject(); bgy.addProperty("type", "integer"); bgy.addProperty("description", "Target Y"); bGotoProps.add("y", bgy);
+        JsonObject bgz = new JsonObject(); bgz.addProperty("type", "integer"); bgz.addProperty("description", "Target Z"); bGotoProps.add("z", bgz);
+        JsonObject bgDist = new JsonObject(); bgDist.addProperty("type", "integer"); bgDist.addProperty("description", "Proximity radius (0 = exact block)"); bGotoProps.add("distance", bgDist);
+        JsonObject bgWait = new JsonObject(); bgWait.addProperty("type", "boolean"); bgWait.addProperty("description", "Wait until target reached (default: true)"); bGotoProps.add("wait_completion", bgWait);
+        JsonObject bgTimeout = new JsonObject(); bgTimeout.addProperty("type", "integer"); bgTimeout.addProperty("description", "Timeout in seconds (default: 60)"); bGotoProps.add("timeout_seconds", bgTimeout);
+        JsonArray bgReq = new JsonArray(); bgReq.add("x"); bgReq.add("y"); bgReq.add("z");
+        bGotoSchema.add("required", bgReq);
+        bGotoSchema.add("properties", bGotoProps);
+        bGotoTool.add("inputSchema", bGotoSchema);
+        tools.add(bGotoTool);
+
+        // baritone_mine
+        JsonObject bMineTool = new JsonObject();
+        bMineTool.addProperty("name", "baritone_mine");
+        bMineTool.addProperty("description", "Instructs Baritone to search and mine specified block types.");
+        JsonObject bMineSchema = new JsonObject();
+        bMineSchema.addProperty("type", "object");
+        JsonObject bMineProps = new JsonObject();
+        JsonObject bBlocks = new JsonObject(); bBlocks.addProperty("type", "array"); bBlocks.addProperty("description", "List of block names to mine (e.g. ['iron_ore', 'coal_ore'])"); bMineProps.add("blocks", bBlocks);
+        JsonObject bCount = new JsonObject(); bCount.addProperty("type", "integer"); bCount.addProperty("description", "Number of blocks to mine (0 = all found)"); bMineProps.add("count", bCount);
+        JsonArray bReq = new JsonArray(); bReq.add("blocks");
+        bMineSchema.add("required", bReq);
+        bMineSchema.add("properties", bMineProps);
+        bMineTool.add("inputSchema", bMineSchema);
+        tools.add(bMineTool);
+
+        // baritone_clear
+        JsonObject bClearTool = new JsonObject();
+        bClearTool.addProperty("name", "baritone_clear");
+        bClearTool.addProperty("description", "Commands Baritone to clear all solid blocks in a bounding box between (x, y, z) and (x2, y2, z2).");
+        JsonObject bClearSchema = new JsonObject();
+        bClearSchema.addProperty("type", "object");
+        JsonObject bClearProps = new JsonObject();
+        JsonObject bcx = new JsonObject(); bcx.addProperty("type", "integer"); bcx.addProperty("description", "Corner 1 X"); bClearProps.add("x", bcx);
+        JsonObject bcy = new JsonObject(); bcy.addProperty("type", "integer"); bcy.addProperty("description", "Corner 1 Y"); bClearProps.add("y", bcy);
+        JsonObject bcz = new JsonObject(); bcz.addProperty("type", "integer"); bcz.addProperty("description", "Corner 1 Z"); bClearProps.add("z", bcz);
+        JsonObject bcx2 = new JsonObject(); bcx2.addProperty("type", "integer"); bcx2.addProperty("description", "Corner 2 X (optional)"); bClearProps.add("x2", bcx2);
+        JsonObject bcy2 = new JsonObject(); bcy2.addProperty("type", "integer"); bcy2.addProperty("description", "Corner 2 Y (optional)"); bClearProps.add("y2", bcy2);
+        JsonObject bcz2 = new JsonObject(); bcz2.addProperty("type", "integer"); bcz2.addProperty("description", "Corner 2 Z (optional)"); bClearProps.add("z2", bcz2);
+        JsonObject bcWait = new JsonObject(); bcWait.addProperty("type", "boolean"); bcWait.addProperty("description", "Wait until clear (default: true)"); bClearProps.add("wait_completion", bcWait);
+        JsonObject bcTimeout = new JsonObject(); bcTimeout.addProperty("type", "integer"); bcTimeout.addProperty("description", "Timeout in seconds (default: 30)"); bClearProps.add("timeout_seconds", bcTimeout);
+        JsonArray bcReq = new JsonArray(); bcReq.add("x"); bcReq.add("y"); bcReq.add("z");
+        bClearSchema.add("required", bcReq);
+        bClearSchema.add("properties", bClearProps);
+        bClearTool.add("inputSchema", bClearSchema);
+        tools.add(bClearTool);
+
+        // baritone_stop
+        JsonObject bStopTool = new JsonObject();
+        bStopTool.addProperty("name", "baritone_stop");
+        bStopTool.addProperty("description", "Instantly cancels all active Baritone pathfinding, building, and mining tasks.");
+        JsonObject bStopSchema = new JsonObject();
+        bStopSchema.addProperty("type", "object");
+        bStopTool.add("inputSchema", bStopSchema);
+        tools.add(bStopTool);
+
+        // baritone_command
+        JsonObject bCmdTool = new JsonObject();
+        bCmdTool.addProperty("name", "baritone_command");
+        bCmdTool.addProperty("description", "Executes any raw Baritone command (e.g. 'sel 1', 'sel 2', 'sel ca', 'set allowBreak true').");
+        JsonObject bCmdSchema = new JsonObject();
+        bCmdSchema.addProperty("type", "object");
+        JsonObject bCmdProps = new JsonObject();
+        JsonObject bCmd = new JsonObject(); bCmd.addProperty("type", "string"); bCmd.addProperty("description", "Baritone command string"); bCmdProps.add("command", bCmd);
+        JsonArray bCmdReq = new JsonArray(); bCmdReq.add("command");
+        bCmdSchema.add("required", bCmdReq);
+        bCmdSchema.add("properties", bCmdProps);
+        bCmdTool.add("inputSchema", bCmdSchema);
+        tools.add(bCmdTool);
+
+        // baritone_status
+        JsonObject bStatTool = new JsonObject();
+        bStatTool.addProperty("name", "baritone_status");
+        bStatTool.addProperty("description", "Returns the current state of Baritone (is_pathing, has_path, estimated_ticks_to_goal, current goal).");
+        JsonObject bStatSchema = new JsonObject();
+        bStatSchema.addProperty("type", "object");
+        bStatTool.add("inputSchema", bStatSchema);
+        tools.add(bStatTool);
+
         return tools;
     }
     

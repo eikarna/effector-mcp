@@ -52,9 +52,41 @@ dependencies {
 processResources {
 	inputs.property "version", project.version
 
-	filesMatching("fabric.mod.json") {
+	filesMatching(["fabric.mod.json", "quilt.mod.json", "META-INF/neoforge.mods.toml", "META-INF/mods.toml"]) {
 		expand "version": inputs.properties.version
 	}
+}
+
+tasks.register('fabricJar', Jar) {
+	archiveClassifier = 'fabric'
+	from sourceSets.main.output
+	from sourceSets.client.output
+	exclude 'META-INF/neoforge.mods.toml', 'META-INF/mods.toml'
+}
+
+tasks.register('quiltJar', Jar) {
+	archiveClassifier = 'quilt'
+	from sourceSets.main.output
+	from sourceSets.client.output
+	exclude 'META-INF/neoforge.mods.toml', 'META-INF/mods.toml'
+}
+
+tasks.register('neoforgeJar', Jar) {
+	archiveClassifier = 'neoforge'
+	from sourceSets.main.output
+	from sourceSets.client.output
+	exclude 'fabric.mod.json', 'quilt.mod.json'
+}
+
+tasks.register('forgeJar', Jar) {
+	archiveClassifier = 'forge'
+	from sourceSets.main.output
+	from sourceSets.client.output
+	exclude 'fabric.mod.json', 'quilt.mod.json', 'META-INF/neoforge.mods.toml'
+}
+
+tasks.named('build') {
+	dependsOn fabricJar, quiltJar, neoforgeJar, forgeJar
 }
 
 tasks.withType(JavaCompile).configureEach {

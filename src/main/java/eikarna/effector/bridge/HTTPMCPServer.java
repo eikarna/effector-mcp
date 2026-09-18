@@ -8,6 +8,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import eikarna.effector.action.IActionQueueController;
 import eikarna.effector.action.ServerActionQueueController;
+import eikarna.effector.action.IBaritoneController;
 import eikarna.effector.action.IContainerController;
 import eikarna.effector.action.IPlayerActionController;
 import eikarna.effector.action.ServerContainerController;
@@ -48,6 +49,7 @@ public class HTTPMCPServer {
     private final IContainerController containerController;
     private final IActionQueueController actionQueueController;
     private final IEntityScanner entityScanner;
+    private IBaritoneController baritoneController;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private HttpServer httpServer;
     private ExecutorService executor;
@@ -116,6 +118,10 @@ public class HTTPMCPServer {
         this.actionQueueController = actionQueueController != null ? actionQueueController : new ServerActionQueueController();
         this.entityScanner = entityScanner != null ? entityScanner : new ServerEntityScanner();
         this.screenshotToolEnabled = screenshotToolEnabled;
+    }
+
+    public void setBaritoneController(IBaritoneController baritoneController) {
+        this.baritoneController = baritoneController;
     }
     
     public void start() throws IOException {
@@ -412,8 +418,77 @@ public class HTTPMCPServer {
                 case "interact_block" -> {
                     return wrapToolResult(playerActionController.interactBlock(arguments));
                 }
+                case "place_block" -> {
+                    return wrapToolResult(playerActionController.placeBlock(arguments));
+                }
+                case "update_sign" -> {
+                    return wrapToolResult(playerActionController.updateSign(arguments));
+                }
                 case "attack_block" -> {
                     return wrapToolResult(playerActionController.attackBlock(arguments));
+                }
+                case "mine_block" -> {
+                    if (baritoneController != null) {
+                        return wrapToolResult(baritoneController.clearArea(arguments));
+                    }
+                    return wrapToolResult(playerActionController.mineBlock(arguments));
+                }
+                case "get_block_info" -> {
+                    return wrapToolResult(blockScanner.getBlockInfo(arguments));
+                }
+                case "baritone_goto" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.gotoPos(arguments));
+                }
+                case "baritone_mine" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.mine(arguments));
+                }
+                case "baritone_clear" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.clearArea(arguments));
+                }
+                case "baritone_stop" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.stop());
+                }
+                case "baritone_command" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.executeCommand(arguments));
+                }
+                case "baritone_status" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.getStatus());
                 }
                 case "swap_hands" -> {
                     return wrapToolResult(playerActionController.swapHands());
@@ -446,6 +521,9 @@ public class HTTPMCPServer {
                     return wrapToolResult(playerActionController.interactEntity(arguments));
                 }
                 case "navigate_to" -> {
+                    if (baritoneController != null) {
+                        return wrapToolResult(baritoneController.gotoPos(arguments));
+                    }
                     return wrapToolResult(actionQueueController.navigateTo(arguments));
                 }
                 case null, default -> {

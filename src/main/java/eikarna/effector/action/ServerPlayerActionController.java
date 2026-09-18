@@ -26,7 +26,22 @@ public class ServerPlayerActionController implements IPlayerActionController {
     }
 
     @Override
+    public JsonObject placeBlock(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject updateSign(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
     public JsonObject attackBlock(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject mineBlock(JsonObject arguments) {
         return notAvailable();
     }
 

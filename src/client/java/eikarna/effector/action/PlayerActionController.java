@@ -1,5 +1,6 @@
 package eikarna.effector.action;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -8,16 +9,22 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
+import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Input;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -214,6 +221,162 @@ public class PlayerActionController implements IPlayerActionController {
     }
 
     @Override
+    public JsonObject placeBlock(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+                return err;
+            }
+
+            int targetX = arguments.get("x").getAsInt();
+            int targetY = arguments.get("y").getAsInt();
+            int targetZ = arguments.get("z").getAsInt();
+            BlockPos targetPos = new BlockPos(targetX, targetY, targetZ);
+
+            if (client.level == null || client.gameMode == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Level or GameMode is null");
+                return err;
+            }
+
+            Direction placeFace = Direction.UP;
+            BlockPos supportPos = targetPos.below();
+            if (arguments.has("face") || arguments.has("direction")) {
+                String dName = arguments.has("face") ? arguments.get("face").getAsString() : arguments.get("direction").getAsString();
+                Direction parsed = Direction.byName(dName.toLowerCase(Locale.ROOT));
+                if (parsed != null) placeFace = parsed;
+            } else {
+                for (Direction d : Direction.values()) {
+                    BlockPos neighbor = targetPos.relative(d);
+                    if (client.level.getBlockState(neighbor).isSolid()) {
+                        supportPos = neighbor;
+                        placeFace = d.getOpposite();
+                        break;
+                    }
+                }
+            }
+
+            InteractionHand hand = InteractionHand.MAIN_HAND;
+            if (arguments.has("hand") && arguments.get("hand").getAsString().toLowerCase(Locale.ROOT).contains("off")) {
+                hand = InteractionHand.OFF_HAND;
+            }
+
+            boolean sneak = arguments.has("sneak") && arguments.get("sneak").getAsBoolean();
+            boolean wasSneaking = player.isShiftKeyDown();
+            if (sneak) {
+                client.options.keyShift.setDown(true);
+                if (player.connection != null) {
+                    player.connection.send(new ServerboundPlayerInputPacket(new Input(false, false, false, false, false, true, false)));
+                }
+            }
+
+            Vec3 hitVec = Vec3.atCenterOf(supportPos).add(
+                placeFace.getStepX() * 0.5,
+                placeFace.getStepY() * 0.5,
+                placeFace.getStepZ() * 0.5
+            );
+            BlockHitResult hitResult = new BlockHitResult(hitVec, placeFace, supportPos, false);
+
+            InteractionResult result = client.gameMode.useItemOn(player, hand, hitResult);
+            player.swing(hand);
+
+            if (sneak && !wasSneaking) {
+                client.options.keyShift.setDown(false);
+                if (player.connection != null) {
+                    player.connection.send(new ServerboundPlayerInputPacket(new Input(false, false, false, false, false, false, false)));
+                }
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", result.consumesAction());
+            res.addProperty("result", result.toString());
+            res.addProperty("targetX", targetX);
+            res.addProperty("targetY", targetY);
+            res.addProperty("targetZ", targetZ);
+            res.addProperty("supportPos", supportPos.toShortString());
+            res.addProperty("placeFace", placeFace.getName());
+            return res;
+        });
+    }
+
+    @Override
+    public JsonObject updateSign(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+                return err;
+            }
+
+            int x = arguments.get("x").getAsInt();
+            int y = arguments.get("y").getAsInt();
+            int z = arguments.get("z").getAsInt();
+            BlockPos targetPos = new BlockPos(x, y, z);
+
+            if (client.level == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Level is null");
+                return err;
+            }
+
+            var blockEntity = client.level.getBlockEntity(targetPos);
+            if (!(blockEntity instanceof SignBlockEntity sign)) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target block is not a sign");
+                return err;
+            }
+
+            boolean isFront = !arguments.has("side") || !"back".equalsIgnoreCase(arguments.get("side").getAsString());
+            List<String> lines = new ArrayList<>();
+            if (arguments.has("lines") && arguments.get("lines").isJsonArray()) {
+                var arr = arguments.getAsJsonArray("lines");
+                for (int i = 0; i < Math.min(4, arr.size()); i++) {
+                    lines.add(arr.get(i).getAsString());
+                }
+            }
+
+            while (lines.size() < 4) lines.add("");
+
+            player.openTextEdit(sign, isFront);
+
+            String l1 = lines.get(0);
+            String l2 = lines.get(1);
+            String l3 = lines.get(2);
+            String l4 = lines.get(3);
+
+            if (player.connection != null) {
+                player.connection.send(new ServerboundSignUpdatePacket(targetPos, isFront, l1, l2, l3, l4));
+            }
+
+            sign.updateText(text -> text.setMessage(0, net.minecraft.network.chat.Component.literal(l1))
+                .setMessage(1, net.minecraft.network.chat.Component.literal(l2))
+                .setMessage(2, net.minecraft.network.chat.Component.literal(l3))
+                .setMessage(3, net.minecraft.network.chat.Component.literal(l4)), isFront);
+
+            if (client.gui != null && client.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.SignEditScreen) {
+                client.setScreenAndShow(null);
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("targetX", x);
+            res.addProperty("targetY", y);
+            res.addProperty("targetZ", z);
+            res.addProperty("isFront", isFront);
+            JsonArray appliedLines = new JsonArray();
+            for (String l : lines) appliedLines.add(l);
+            res.add("lines", appliedLines);
+            return res;
+        });
+    }
+
+    @Override
     public JsonObject attackBlock(JsonObject arguments) {
         return runOnClientThread((client, player) -> {
             if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
@@ -244,17 +407,22 @@ public class PlayerActionController implements IPlayerActionController {
             }
 
             boolean started = client.gameMode.startDestroyBlock(targetPos, face);
-            boolean destroyed = client.gameMode.destroyBlock(targetPos);
+            player.swing(InteractionHand.MAIN_HAND);
 
             JsonObject res = new JsonObject();
-            res.addProperty("success", started || destroyed);
+            res.addProperty("success", started);
             res.addProperty("started", started);
-            res.addProperty("destroyed", destroyed);
             res.addProperty("targetX", x);
             res.addProperty("targetY", y);
             res.addProperty("targetZ", z);
             return res;
         });
+    }
+
+    @Override
+    public JsonObject mineBlock(JsonObject arguments) {
+        BaritoneController bc = new BaritoneController();
+        return bc.clearArea(arguments);
     }
 
     @Override

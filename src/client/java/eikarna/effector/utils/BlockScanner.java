@@ -24,6 +24,67 @@ public class BlockScanner implements eikarna.effector.utils.IBlockScanner {
         return scanChunkStatic(arguments);
     }
 
+    @Override
+    public JsonObject getBlockInfo(JsonObject arguments) {
+        return getBlockInfoStatic(arguments);
+    }
+
+    public static JsonObject getBlockInfoStatic(JsonObject arguments) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (client.level == null) {
+                return createErrorResponse("World not available");
+            }
+
+            if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+                return createErrorResponse("Missing required parameters: 'x', 'y', 'z'");
+            }
+
+            int x = arguments.get("x").getAsInt();
+            int y = arguments.get("y").getAsInt();
+            int z = arguments.get("z").getAsInt();
+
+            BlockPos pos = new BlockPos(x, y, z);
+            var blockState = client.level.getBlockState(pos);
+            String blockId = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(blockState.getBlock()).toString();
+
+            JsonObject result = new JsonObject();
+            result.addProperty("x", x);
+            result.addProperty("y", y);
+            result.addProperty("z", z);
+            result.addProperty("blockType", blockId);
+            result.addProperty("isAir", blockState.isAir());
+            result.addProperty("isSolid", blockState.isSolid());
+
+            JsonObject props = new JsonObject();
+            for (var prop : blockState.getProperties()) {
+                props.addProperty(prop.getName(), blockState.getValue(prop).toString());
+            }
+            result.add("properties", props);
+
+            var blockEntity = client.level.getBlockEntity(pos);
+            if (blockEntity instanceof net.minecraft.world.level.block.entity.SignBlockEntity sign) {
+                JsonObject signObj = new JsonObject();
+                var frontText = sign.getFrontText();
+                var backText = sign.getBackText();
+                com.google.gson.JsonArray frontLines = new com.google.gson.JsonArray();
+                com.google.gson.JsonArray backLines = new com.google.gson.JsonArray();
+                for (int i = 0; i < 4; i++) {
+                    frontLines.add(frontText.getMessage(i, false).getString());
+                    backLines.add(backText.getMessage(i, false).getString());
+                }
+                signObj.add("front_messages", frontLines);
+                signObj.add("back_messages", backLines);
+                result.add("sign", signObj);
+            }
+
+            return result;
+        } catch (Exception e) {
+            LOGGER.error("Error getting block info", e);
+            return createErrorResponse("Failed to get block info: " + e.getMessage());
+        }
+    }
+
     public static JsonObject scanBlocksInAreaStatic(JsonObject fromPos, JsonObject toPos, int maxAreaSize) {
         try {
             Minecraft client = Minecraft.getInstance();

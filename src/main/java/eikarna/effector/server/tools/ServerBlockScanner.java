@@ -98,4 +98,12 @@ public class ServerBlockScanner implements IBlockScanner {
         res.addProperty("error", "Chunk scanner is not available in dedicated server mode");
         return res;
     }
+
+    @Override
+    public JsonObject getBlockInfo(JsonObject arguments) {
+        JsonObject res = new JsonObject();
+        res.addProperty("isError", true);
+        res.addProperty("error", "get_block_info is not available in dedicated server mode");
+        return res;
+    }
 }

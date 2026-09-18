@@ -7,6 +7,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.level.Level;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
 public class PlayerInfoProvider implements eikarna.effector.utils.IPlayerInfoProvider {
@@ -147,6 +148,158 @@ public class PlayerInfoProvider implements eikarna.effector.utils.IPlayerInfoPro
 
         playerInfo.add("inventory", inventory);
         
+        // --- 1. Reticle Focus (What the player is directly looking at) ---
+        JsonObject lookingAt = new JsonObject();
+        if (client.hitResult != null) {
+            net.minecraft.world.phys.HitResult hit = client.hitResult;
+            if (hit instanceof net.minecraft.world.phys.BlockHitResult bhr && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                BlockPos bPos = bhr.getBlockPos();
+                var state = world != null ? world.getBlockState(bPos) : null;
+                String blockId = state != null ? net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString() : "unknown";
+                double dist = Math.sqrt(player.getEyePosition().distanceToSqr(bhr.getLocation()));
+                lookingAt.addProperty("type", "block");
+                lookingAt.addProperty("block", blockId);
+                lookingAt.addProperty("x", bPos.getX());
+                lookingAt.addProperty("y", bPos.getY());
+                lookingAt.addProperty("z", bPos.getZ());
+                lookingAt.addProperty("face", bhr.getDirection().getName());
+                lookingAt.addProperty("distance", Math.round(dist * 100.0) / 100.0);
+                lookingAt.addProperty("can_reach", dist <= 4.5);
+            } else if (hit instanceof net.minecraft.world.phys.EntityHitResult ehr && hit.getType() == net.minecraft.world.phys.HitResult.Type.ENTITY) {
+                net.minecraft.world.entity.Entity ent = ehr.getEntity();
+                double dist = Math.sqrt(player.getEyePosition().distanceToSqr(ent.position()));
+                lookingAt.addProperty("type", "entity");
+                lookingAt.addProperty("entity_id", ent.getId());
+                lookingAt.addProperty("entity_name", ent.getName().getString());
+                lookingAt.addProperty("entity_type", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(ent.getType()).toString());
+                lookingAt.addProperty("distance", Math.round(dist * 100.0) / 100.0);
+                lookingAt.addProperty("can_reach", dist <= 3.5);
+                if (ent instanceof net.minecraft.world.entity.LivingEntity le) {
+                    lookingAt.addProperty("health", Math.round(le.getHealth() * 10.0f) / 10.0f);
+                    lookingAt.addProperty("max_health", Math.round(le.getMaxHealth() * 10.0f) / 10.0f);
+                }
+            } else {
+                lookingAt.addProperty("type", "miss");
+                lookingAt.addProperty("description", "Looking at air or nothing within reach");
+            }
+        }
+        playerInfo.add("looking_at", lookingAt);
+
+        // --- 2. Immediate Proprioception (Surrounding blocks and vertical clearance) ---
+        JsonObject bodyState = new JsonObject();
+        if (world != null) {
+            int px = player.getBlockX();
+            int py = player.getBlockY();
+            int pz = player.getBlockZ();
+
+            var floorState = world.getBlockState(new BlockPos(px, py - 1, pz));
+            var feetState = world.getBlockState(new BlockPos(px, py, pz));
+            var head1State = world.getBlockState(new BlockPos(px, py + 1, pz));
+            var head2State = world.getBlockState(new BlockPos(px, py + 2, pz));
+
+            bodyState.addProperty("floor_beneath", net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(floorState.getBlock()).toString());
+            bodyState.addProperty("floor_solid", floorState.isSolid());
+            bodyState.addProperty("feet_block", net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(feetState.getBlock()).toString());
+            bodyState.addProperty("headspace_clear", head1State.isAir() && head2State.isAir());
+
+            int ceilDist = -1;
+            String ceilBlock = "none";
+            for (int dy = 1; dy <= 16; dy++) {
+                var s = world.getBlockState(new BlockPos(px, py + dy, pz));
+                if (s.isSolid()) {
+                    ceilDist = dy;
+                    ceilBlock = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).toString();
+                    break;
+                }
+            }
+            bodyState.addProperty("ceiling_distance", ceilDist);
+            bodyState.addProperty("ceiling_block", ceilBlock);
+            bodyState.addProperty("light_level", world.getMaxLocalRawBrightness(player.blockPosition()));
+        }
+        playerInfo.add("body_state", bodyState);
+
+        // --- 3. 8-Directional Distance Radar at eye level ---
+        JsonObject radar = new JsonObject();
+        if (world != null) {
+            int px = player.getBlockX();
+            int eyeY = (int) Math.floor(player.getEyeY());
+            int pz = player.getBlockZ();
+
+            int[][] dirs = {
+                {0, -1},  // NORTH
+                {1, -1},  // NORTHEAST
+                {1, 0},   // EAST
+                {1, 1},   // SOUTHEAST
+                {0, 1},   // SOUTH
+                {-1, 1},  // SOUTHWEST
+                {-1, 0},  // WEST
+                {-1, -1}  // NORTHWEST
+            };
+            String[] dirNames = {"NORTH", "NORTHEAST", "EAST", "SOUTHEAST", "SOUTH", "SOUTHWEST", "WEST", "NORTHWEST"};
+
+            for (int i = 0; i < dirs.length; i++) {
+                int dx = dirs[i][0];
+                int dz = dirs[i][1];
+                int hitDist = -1;
+                String hitBlock = "air";
+
+                for (int step = 1; step <= 16; step++) {
+                    BlockPos checkPos = new BlockPos(px + (dx * step), eyeY, pz + (dz * step));
+                    var s = world.getBlockState(checkPos);
+                    if (s.isSolid()) {
+                        hitDist = step;
+                        hitBlock = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).toString().replace("minecraft:", "");
+                        break;
+                    }
+                }
+
+                JsonObject rDir = new JsonObject();
+                rDir.addProperty("distance", hitDist != -1 ? hitDist : 16);
+                rDir.addProperty("hit_solid", hitDist != -1);
+                rDir.addProperty("block", hitBlock);
+                radar.add(dirNames[i], rDir);
+            }
+        }
+        playerInfo.add("radar_eye_level", radar);
+
+        // --- 4. 2D Top-Down ASCII Floor Slice (11x11 Grid centered on player) ---
+        if (world != null) {
+            int px = player.getBlockX();
+            int py = player.getBlockY() - 1; // standing floor
+            int pz = player.getBlockZ();
+            int r = 5; // 11x11
+
+            StringBuilder sb = new StringBuilder();
+            sb.append("\nTop-Down Floor Slice (11x11, Y=").append(py).append(", @ = player):\n");
+            sb.append("Legend: [@] You | [#] Wall/Rock | [.] Wood/Path | [C] Chest | [T] Torch | [ ] Air/Drop | [?] Other\n");
+
+            for (int dz = -r; dz <= r; dz++) {
+                for (int dx = -r; dx <= r; dx++) {
+                    if (dx == 0 && dz == 0) {
+                        sb.append("@ ");
+                    } else {
+                        BlockPos pos = new BlockPos(px + dx, py, pz + dz);
+                        var s = world.getBlockState(pos);
+                        if (s.isAir()) {
+                            sb.append("  ");
+                        } else {
+                            String name = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(s.getBlock()).getPath();
+                            if (name.contains("chest")) sb.append("C ");
+                            else if (name.contains("torch")) sb.append("T ");
+                            else if (name.contains("plank") || name.contains("wood") || name.contains("slab")) sb.append(". ");
+                            else if (name.contains("stone") || name.contains("cobble") || name.contains("deepslate") || name.contains("brick")) sb.append("# ");
+                            else if (name.contains("dirt") || name.contains("grass")) sb.append(", ");
+                            else if (name.contains("water")) sb.append("~ ");
+                            else if (name.contains("lava")) sb.append("! ");
+                            else sb.append("? ");
+                        }
+                    }
+                }
+                sb.append("\n");
+            }
+            playerInfo.addProperty("ascii_map", sb.toString());
+        }
+
         return playerInfo;
     }
     

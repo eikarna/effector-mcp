@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "eikarna.effector",
+    "id": "effector-mcp",
+    "version": "${version}",
+    "metadata": {
+      "name": "Effector MCP",
+      "description": "Robotic End-Effector & Physical Actuator Bridge for Minecraft. Exposes tick-synchronized action queues, voxel chunk reconnaissance, and functional container control via MCP.",
+      "contributors": {
+        "Eikarna": "Author"
+      },
+      "contact": {
+        "homepage": "https://github.com/eikarna",
+        "sources": "https://github.com/eikarna/effector-mcp"
+      },
+      "license": "MIT",
+      "icon": "assets/effector-mcp/icon.png"
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "entrypoints": {
+      "main": [
+        "eikarna.effector.EffectorMod"
+      ],
+      "client": [
+        "eikarna.effector.EffectorModClient"
+      ]
+    },
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=0.20.0"
+      },
+      {
+        "id": "minecraft",
+        "versions": ">=26.2"
+      }
+    ]
+  },
+  "mixin": [
+    "effector-mcp.mixins.json",
+    "effector-mcp.client.mixins.json"
+  ]
+}

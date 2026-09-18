@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="effector_mcp"
+version="${version}"
+displayName="Effector MCP"
+description="Robotic End-Effector & Physical Actuator Bridge for Minecraft. Exposes tick-synchronized action queues, voxel chunk reconnaissance, and functional container control via MCP."
+authors="Eikarna"
+
+[[dependencies.effector_mcp]]
+modId="forge"
+type="required"
+versionRange="[47,)"
+ordering="NONE"
+side="CLIENT"
+
+[[dependencies.effector_mcp]]
+modId="minecraft"
+type="required"
+versionRange="[26.2,)"
+ordering="NONE"
+side="CLIENT"
