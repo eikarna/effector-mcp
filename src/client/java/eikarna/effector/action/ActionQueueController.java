@@ -271,76 +271,7 @@ public class ActionQueueController implements IActionQueueController {
             return err;
         }
 
-        if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
-            JsonObject err = new JsonObject();
-            err.addProperty("isError", true);
-            err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
-            return err;
-        }
-
-        int targetX = (int) Math.floor(arguments.get("x").getAsDouble());
-        int targetY = (int) Math.floor(arguments.get("y").getAsDouble());
-        int targetZ = (int) Math.floor(arguments.get("z").getAsDouble());
-
-        boolean sprint = !arguments.has("sprint") || arguments.get("sprint").getAsBoolean();
-        boolean waitCompletion = !arguments.has("wait_completion") || arguments.get("wait_completion").getAsBoolean();
-        int maxNodes = arguments.has("max_nodes") ? arguments.get("max_nodes").getAsInt() : 4000;
-
-        BlockPos start = client.player.blockPosition();
-        BlockPos goal = new BlockPos(targetX, targetY, targetZ);
-
-        double directDist = Math.sqrt(start.distSqr(goal));
-        if (directDist > 128.0) {
-            JsonObject err = new JsonObject();
-            err.addProperty("isError", true);
-            err.addProperty("error", "Target is too far for single pathfinding run (distance: " + Math.round(directDist) + ", max: 128 blocks)");
-            return err;
-        }
-
-        List<BlockPos> path = VoxelPathfinder.findPath(client.level, start, goal, maxNodes);
-        if (path.isEmpty()) {
-            JsonObject err = new JsonObject();
-            err.addProperty("isError", true);
-            err.addProperty("error", "No safe walkable path found from " + start.toShortString() + " to " + goal.toShortString());
-            return err;
-        }
-
-        JsonArray actions = VoxelPathfinder.pathToActions(path, sprint);
-
-        JsonObject executeArgs = new JsonObject();
-        executeArgs.add("actions", actions);
-        executeArgs.addProperty("wait_completion", waitCompletion);
-
-        JsonObject execResult = executeActions(executeArgs);
-
-        JsonObject res = new JsonObject();
-        res.addProperty("success", execResult.has("success") && execResult.get("success").getAsBoolean());
-        res.addProperty("path_blocks", path.size());
-        res.addProperty("actions_generated", actions.size());
-
-        JsonObject startObj = new JsonObject();
-        startObj.addProperty("x", start.getX());
-        startObj.addProperty("y", start.getY());
-        startObj.addProperty("z", start.getZ());
-        res.add("start", startObj);
-
-        JsonObject targetObj = new JsonObject();
-        targetObj.addProperty("x", targetX);
-        targetObj.addProperty("y", targetY);
-        targetObj.addProperty("z", targetZ);
-        res.add("target", targetObj);
-
-        BlockPos finalPathNode = path.get(path.size() - 1);
-        boolean reached = finalPathNode.distSqr(goal) <= 4;
-        res.addProperty("reached_target", reached);
-
-        if (execResult.has("message")) {
-            res.addProperty("execution_message", execResult.get("message").getAsString());
-        }
-        if (execResult.has("error")) {
-            res.addProperty("error", execResult.get("error").getAsString());
-        }
-
-        return res;
+        BaritoneController bc = new BaritoneController();
+        return bc.gotoPos(arguments);
     }
 }

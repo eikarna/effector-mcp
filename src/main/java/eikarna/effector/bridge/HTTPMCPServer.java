@@ -526,6 +526,15 @@ public class HTTPMCPServer {
                     }
                     return wrapToolResult(actionQueueController.navigateTo(arguments));
                 }
+                case "audit_enclosure" -> {
+                    return wrapToolResult(blockScanner.auditEnclosure(arguments));
+                }
+                case "get_orthographic_slice" -> {
+                    return wrapToolResult(blockScanner.getOrthographicSlice(arguments));
+                }
+                case "get_perceptual_radar" -> {
+                    return wrapToolResult(blockScanner.getPerceptualRadar(arguments));
+                }
                 case null, default -> {
                     JsonObject error = new JsonObject();
                     error.addProperty("isError", true);

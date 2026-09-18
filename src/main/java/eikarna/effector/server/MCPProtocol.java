@@ -794,6 +794,51 @@ public class MCPProtocol {
         bStatTool.add("inputSchema", bStatSchema);
         tools.add(bStatTool);
 
+        // audit_enclosure
+        JsonObject auditTool = new JsonObject();
+        auditTool.addProperty("name", "audit_enclosure");
+        auditTool.addProperty("description", "Performs a 3D BFS flood-fill inside a room/corridor to verify if it is 100% airtight and fully enclosed by solid blocks. Returns exact leak coordinates, faces, and missing blocks if any gaps exist.");
+        JsonObject auditSchema = new JsonObject();
+        auditSchema.addProperty("type", "object");
+        JsonObject auditProps = new JsonObject();
+        JsonObject aStart = new JsonObject(); aStart.addProperty("type", "object"); aStart.addProperty("description", "Optional interior start point {x, y, z}. Defaults to player's current block position."); auditProps.add("start", aStart);
+        JsonObject aBB = new JsonObject(); aBB.addProperty("type", "object"); aBB.addProperty("description", "Room bounding box with min_x, max_x, min_y, max_y, min_z, max_z."); auditProps.add("bounding_box", aBB);
+        JsonObject aVol = new JsonObject(); aVol.addProperty("type", "integer"); aVol.addProperty("description", "Max air volume to traverse (default: 15000)"); auditProps.add("max_volume", aVol);
+        JsonArray aReq = new JsonArray(); aReq.add("bounding_box");
+        auditSchema.add("required", aReq);
+        auditSchema.add("properties", auditProps);
+        auditTool.add("inputSchema", auditSchema);
+        tools.add(auditTool);
+
+        // get_orthographic_slice
+        JsonObject sliceTool = new JsonObject();
+        sliceTool.addProperty("name", "get_orthographic_slice");
+        sliceTool.addProperty("description", "Generates a 2D ASCII map slice (horizontal XZ plane, or vertical XY/YZ plane) showing walls (#), air (.), torches (T), chests (C), and doors (D). Allows non-vision LLMs to perceive spatial structure without token explosion.");
+        JsonObject sliceSchema = new JsonObject();
+        sliceSchema.addProperty("type", "object");
+        JsonObject sliceProps = new JsonObject();
+        JsonObject sPlane = new JsonObject(); sPlane.addProperty("type", "string"); sPlane.addProperty("description", "Projection plane: 'horizontal' (XZ slice at level Y), 'vertical_x' (YZ slice at level X), 'vertical_z' (XY slice at level Z). Default: horizontal."); sliceProps.add("plane", sPlane);
+        JsonObject sLevel = new JsonObject(); sLevel.addProperty("type", "integer"); sLevel.addProperty("description", "The coordinate level of the slice (e.g. Y level for horizontal). Default: player level."); sliceProps.add("level", sLevel);
+        JsonObject sMinU = new JsonObject(); sMinU.addProperty("type", "integer"); sMinU.addProperty("description", "Minimum first axis coordinate (e.g. min X)"); sliceProps.add("min_u", sMinU);
+        JsonObject sMaxU = new JsonObject(); sMaxU.addProperty("type", "integer"); sMaxU.addProperty("description", "Maximum first axis coordinate (e.g. max X)"); sliceProps.add("max_u", sMaxU);
+        JsonObject sMinV = new JsonObject(); sMinV.addProperty("type", "integer"); sMinV.addProperty("description", "Minimum second axis coordinate (e.g. min Z)"); sliceProps.add("min_v", sMinV);
+        JsonObject sMaxV = new JsonObject(); sMaxV.addProperty("type", "integer"); sMaxV.addProperty("description", "Maximum second axis coordinate (e.g. max Z)"); sliceProps.add("max_v", sMaxV);
+        sliceSchema.add("properties", sliceProps);
+        sliceTool.add("inputSchema", sliceSchema);
+        tools.add(sliceTool);
+
+        // get_perceptual_radar
+        JsonObject radarTool = new JsonObject();
+        radarTool.addProperty("name", "get_perceptual_radar");
+        radarTool.addProperty("description", "Casts a 3-tier raycast radar (feet level Y-1, eye level Y, ceiling level Y+2) in 8 cardinal and intercardinal directions (N, NE, E, SE, S, SW, W, NW). Returns distance and hit block for each tier.");
+        JsonObject radarSchema = new JsonObject();
+        radarSchema.addProperty("type", "object");
+        JsonObject radarProps = new JsonObject();
+        JsonObject rDist = new JsonObject(); rDist.addProperty("type", "integer"); rDist.addProperty("description", "Max scanning distance in blocks (default: 16, max: 32)"); radarProps.add("max_distance", rDist);
+        radarSchema.add("properties", radarProps);
+        radarTool.add("inputSchema", radarSchema);
+        tools.add(radarTool);
+
         return tools;
     }
     

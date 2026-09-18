@@ -106,4 +106,28 @@ public class ServerBlockScanner implements IBlockScanner {
         res.addProperty("error", "get_block_info is not available in dedicated server mode");
         return res;
     }
+
+    @Override
+    public JsonObject auditEnclosure(JsonObject arguments) {
+        JsonObject res = new JsonObject();
+        res.addProperty("isError", true);
+        res.addProperty("error", "audit_enclosure is only supported in client environment");
+        return res;
+    }
+
+    @Override
+    public JsonObject getOrthographicSlice(JsonObject arguments) {
+        JsonObject res = new JsonObject();
+        res.addProperty("isError", true);
+        res.addProperty("error", "get_orthographic_slice is only supported in client environment");
+        return res;
+    }
+
+    @Override
+    public JsonObject getPerceptualRadar(JsonObject arguments) {
+        JsonObject res = new JsonObject();
+        res.addProperty("isError", true);
+        res.addProperty("error", "get_perceptual_radar is only supported in client environment");
+        return res;
+    }
 }

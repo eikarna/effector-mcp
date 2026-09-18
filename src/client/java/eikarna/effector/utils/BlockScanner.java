@@ -1,11 +1,10 @@
 package eikarna.effector.utils;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
@@ -27,6 +26,21 @@ public class BlockScanner implements eikarna.effector.utils.IBlockScanner {
     @Override
     public JsonObject getBlockInfo(JsonObject arguments) {
         return getBlockInfoStatic(arguments);
+    }
+
+    @Override
+    public JsonObject auditEnclosure(JsonObject arguments) {
+        return auditEnclosureStatic(arguments);
+    }
+
+    @Override
+    public JsonObject getOrthographicSlice(JsonObject arguments) {
+        return getOrthographicSliceStatic(arguments);
+    }
+
+    @Override
+    public JsonObject getPerceptualRadar(JsonObject arguments) {
+        return getPerceptualRadarStatic(arguments);
     }
 
     public static JsonObject getBlockInfoStatic(JsonObject arguments) {
@@ -268,6 +282,296 @@ public class BlockScanner implements eikarna.effector.utils.IBlockScanner {
         }
     }
     
+    public static JsonObject auditEnclosureStatic(JsonObject arguments) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (client.level == null) {
+                return createErrorResponse("World not available");
+            }
+
+            int startX, startY, startZ;
+            if (arguments.has("start") && arguments.get("start").isJsonObject()) {
+                JsonObject start = arguments.getAsJsonObject("start");
+                startX = start.get("x").getAsInt();
+                startY = start.get("y").getAsInt();
+                startZ = start.get("z").getAsInt();
+            } else if (client.player != null) {
+                startX = client.player.getBlockX();
+                startY = client.player.getBlockY();
+                startZ = client.player.getBlockZ();
+            } else {
+                return createErrorResponse("Missing required parameter: 'start' coordinate object");
+            }
+
+            if (!arguments.has("bounding_box") || !arguments.get("bounding_box").isJsonObject()) {
+                return createErrorResponse("Missing required parameter: 'bounding_box' object with min_x, max_x, min_y, max_y, min_z, max_z");
+            }
+            JsonObject bb = arguments.getAsJsonObject("bounding_box");
+            int minX = bb.get("min_x").getAsInt();
+            int maxX = bb.get("max_x").getAsInt();
+            int minY = bb.get("min_y").getAsInt();
+            int maxY = bb.get("max_y").getAsInt();
+            int minZ = bb.get("min_z").getAsInt();
+            int maxZ = bb.get("max_z").getAsInt();
+
+            if (minX > maxX || minY > maxY || minZ > maxZ) {
+                return createErrorResponse("Invalid bounding_box: min coordinates must be <= max coordinates");
+            }
+
+            int maxVolume = arguments.has("max_volume") ? arguments.get("max_volume").getAsInt() : 15000;
+
+            Level level = client.level;
+            BlockPos startPos = new BlockPos(startX, startY, startZ);
+
+            var startState = level.getBlockState(startPos);
+            if (!startState.getCollisionShape(level, startPos).isEmpty()) {
+                JsonObject err = new JsonObject();
+                err.addProperty("is_enclosed", false);
+                err.addProperty("error", "Start position " + startPos.toShortString() + " is inside a solid block (" + startState.getBlock().getName().getString() + ")");
+                return err;
+            }
+
+            Queue<BlockPos> queue = new ArrayDeque<>();
+            Set<Long> visited = new HashSet<>();
+            queue.add(startPos);
+            visited.add(startPos.asLong());
+
+            Map<String, List<BlockPos>> leaksByFace = new HashMap<>();
+            leaksByFace.put("west", new ArrayList<>());
+            leaksByFace.put("east", new ArrayList<>());
+            leaksByFace.put("floor", new ArrayList<>());
+            leaksByFace.put("ceiling", new ArrayList<>());
+            leaksByFace.put("north", new ArrayList<>());
+            leaksByFace.put("south", new ArrayList<>());
+
+            int[] dx = {1, -1, 0, 0, 0, 0};
+            int[] dy = {0, 0, 1, -1, 0, 0};
+            int[] dz = {0, 0, 0, 0, 1, -1};
+
+            int visitedCount = 0;
+            while (!queue.isEmpty() && visitedCount < maxVolume) {
+                BlockPos curr = queue.poll();
+                visitedCount++;
+
+                for (int i = 0; i < 6; i++) {
+                    int nx = curr.getX() + dx[i];
+                    int ny = curr.getY() + dy[i];
+                    int nz = curr.getZ() + dz[i];
+
+                    if (nx < minX) {
+                        leaksByFace.get("west").add(new BlockPos(nx, ny, nz));
+                        continue;
+                    }
+                    if (nx > maxX) {
+                        leaksByFace.get("east").add(new BlockPos(nx, ny, nz));
+                        continue;
+                    }
+                    if (ny < minY) {
+                        leaksByFace.get("floor").add(new BlockPos(nx, ny, nz));
+                        continue;
+                    }
+                    if (ny > maxY) {
+                        leaksByFace.get("ceiling").add(new BlockPos(nx, ny, nz));
+                        continue;
+                    }
+                    if (nz < minZ) {
+                        leaksByFace.get("north").add(new BlockPos(nx, ny, nz));
+                        continue;
+                    }
+                    if (nz > maxZ) {
+                        leaksByFace.get("south").add(new BlockPos(nx, ny, nz));
+                        continue;
+                    }
+
+                    BlockPos nextPos = new BlockPos(nx, ny, nz);
+                    long key = nextPos.asLong();
+                    if (!visited.contains(key)) {
+                        visited.add(key);
+                        var state = level.getBlockState(nextPos);
+                        if (state.getCollisionShape(level, nextPos).isEmpty()) {
+                            queue.add(nextPos);
+                        }
+                    }
+                }
+            }
+
+            int totalLeaks = 0;
+            JsonArray leakSummary = new JsonArray();
+
+            for (Map.Entry<String, List<BlockPos>> entry : leaksByFace.entrySet()) {
+                String face = entry.getKey();
+                List<BlockPos> leakList = entry.getValue();
+                if (!leakList.isEmpty()) {
+                    totalLeaks += leakList.size();
+
+                    Map<Integer, List<BlockPos>> byY = new HashMap<>();
+                    for (BlockPos p : leakList) {
+                        byY.computeIfAbsent(p.getY(), k -> new ArrayList<>()).add(p);
+                    }
+
+                    for (Map.Entry<Integer, List<BlockPos>> yEntry : byY.entrySet()) {
+                        int yLevel = yEntry.getKey();
+                        List<BlockPos> pts = yEntry.getValue();
+
+                        int minLeakZ = pts.stream().mapToInt(BlockPos::getZ).min().orElse(0);
+                        int maxLeakZ = pts.stream().mapToInt(BlockPos::getZ).max().orElse(0);
+                        int minLeakX = pts.stream().mapToInt(BlockPos::getX).min().orElse(0);
+                        int maxLeakX = pts.stream().mapToInt(BlockPos::getX).max().orElse(0);
+
+                        JsonObject item = new JsonObject();
+                        item.addProperty("face", face);
+                        item.addProperty("y", yLevel);
+                        item.addProperty("missing_count", pts.size());
+                        item.addProperty("x_range", "[" + minLeakX + " .. " + maxLeakX + "]");
+                        item.addProperty("z_range", "[" + minLeakZ + " .. " + maxLeakZ + "]");
+                        item.addProperty("suggestion", "Place solid blocks on " + face + " boundary at Y: " + yLevel);
+                        leakSummary.add(item);
+                    }
+                }
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("is_enclosed", totalLeaks == 0);
+            res.addProperty("total_leak_points", totalLeaks);
+            res.addProperty("interior_air_volume", visitedCount);
+            res.add("leak_summary", leakSummary);
+            if (totalLeaks == 0) {
+                res.addProperty("message", "Structure is completely solid and 100% enclosed within the specified bounding box.");
+            }
+            return res;
+        } catch (Exception e) {
+            LOGGER.error("Error in auditEnclosure: ", e);
+            return createErrorResponse("Failed to audit enclosure: " + e.getMessage());
+        }
+    }
+
+    public static JsonObject getOrthographicSliceStatic(JsonObject arguments) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (client.level == null) return createErrorResponse("World not available");
+
+            String plane = arguments.has("plane") ? arguments.get("plane").getAsString().toLowerCase(Locale.ROOT) : "horizontal";
+            int levelCoord = arguments.has("level") ? arguments.get("level").getAsInt() : (client.player != null ? client.player.getBlockY() : 64);
+
+            int minU = arguments.has("min_u") ? arguments.get("min_u").getAsInt() : (client.player != null ? client.player.getBlockX() - 8 : -8);
+            int maxU = arguments.has("max_u") ? arguments.get("max_u").getAsInt() : (client.player != null ? client.player.getBlockX() + 8 : 8);
+            int minV = arguments.has("min_v") ? arguments.get("min_v").getAsInt() : (client.player != null ? client.player.getBlockZ() - 8 : -8);
+            int maxV = arguments.has("max_v") ? arguments.get("max_v").getAsInt() : (client.player != null ? client.player.getBlockZ() + 8 : 8);
+
+            if (maxU - minU > 64 || maxV - minV > 64) {
+                return createErrorResponse("Slice area too large. Maximum 64x64 blocks.");
+            }
+
+            Level level = client.level;
+            StringBuilder ascii = new StringBuilder();
+            ascii.append(String.format("Slice [%s] at %d (U: %d..%d, V: %d..%d)\n", plane, levelCoord, minU, maxU, minV, maxV));
+
+            for (int v = minV; v <= maxV; v++) {
+                ascii.append(String.format("%5d ", v));
+                for (int u = minU; u <= maxU; u++) {
+                    BlockPos pos;
+                    if ("horizontal".equals(plane)) {
+                        pos = new BlockPos(u, levelCoord, v);
+                    } else if ("vertical_x".equals(plane)) {
+                        pos = new BlockPos(levelCoord, v, u);
+                    } else {
+                        pos = new BlockPos(u, v, levelCoord);
+                    }
+
+                    var state = level.getBlockState(pos);
+                    char c;
+                    if (state.isAir()) {
+                        c = '.';
+                    } else if (state.getBlock() instanceof net.minecraft.world.level.block.TorchBlock) {
+                        c = 'T';
+                    } else if (state.getBlock() instanceof net.minecraft.world.level.block.ChestBlock) {
+                        c = 'C';
+                    } else if (state.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
+                        c = 'D';
+                    } else if (!state.getCollisionShape(level, pos).isEmpty()) {
+                        c = '#';
+                    } else {
+                        c = '~';
+                    }
+                    ascii.append(c).append(' ');
+                }
+                ascii.append('\n');
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("plane", plane);
+            res.addProperty("level", levelCoord);
+            res.addProperty("ascii_grid", ascii.toString());
+            return res;
+        } catch (Exception e) {
+            return createErrorResponse("Failed to generate orthographic slice: " + e.getMessage());
+        }
+    }
+
+    public static JsonObject getPerceptualRadarStatic(JsonObject arguments) {
+        try {
+            Minecraft client = Minecraft.getInstance();
+            if (client.level == null || client.player == null) return createErrorResponse("Player or world not available");
+
+            int maxDistance = arguments.has("max_distance") ? Math.min(arguments.get("max_distance").getAsInt(), 32) : 16;
+            var player = client.player;
+            var level = client.level;
+
+            int px = player.getBlockX();
+            int py = player.getBlockY();
+            int pz = player.getBlockZ();
+
+            JsonObject res = new JsonObject();
+            res.addProperty("player_x", px);
+            res.addProperty("player_y", py);
+            res.addProperty("player_z", pz);
+
+            String[] dirNames = {"NORTH", "NORTH_EAST", "EAST", "SOUTH_EAST", "SOUTH", "SOUTH_WEST", "WEST", "NORTH_WEST"};
+            int[] dirX = {0, 1, 1, 1, 0, -1, -1, -1};
+            int[] dirZ = {-1, -1, 0, 1, 1, 1, 0, -1};
+
+            int[] yOffsets = {-1, 0, 2};
+            String[] tierNames = {"foot_level_y_minus_1", "eye_level_y", "ceiling_level_y_plus_2"};
+
+            for (int t = 0; t < 3; t++) {
+                int targetY = py + yOffsets[t];
+                JsonObject tierObj = new JsonObject();
+
+                for (int d = 0; d < 8; d++) {
+                    int stepX = dirX[d];
+                    int stepZ = dirZ[d];
+
+                    int hitDist = maxDistance;
+                    String hitBlock = "minecraft:air";
+                    boolean foundSolid = false;
+
+                    for (int dist = 1; dist <= maxDistance; dist++) {
+                        BlockPos checkPos = new BlockPos(px + (stepX * dist), targetY, pz + (stepZ * dist));
+                        var state = level.getBlockState(checkPos);
+                        if (!state.getCollisionShape(level, checkPos).isEmpty()) {
+                            hitDist = dist;
+                            hitBlock = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+                            foundSolid = true;
+                            break;
+                        }
+                    }
+
+                    JsonObject ray = new JsonObject();
+                    ray.addProperty("distance", hitDist);
+                    ray.addProperty("hit_solid", foundSolid);
+                    ray.addProperty("block", hitBlock);
+                    tierObj.add(dirNames[d], ray);
+                }
+
+                res.add(tierNames[t], tierObj);
+            }
+
+            return res;
+        } catch (Exception e) {
+            return createErrorResponse("Failed to compute perceptual radar: " + e.getMessage());
+        }
+    }
+
     private static JsonObject createErrorResponse(String message) {
         JsonObject error = new JsonObject();
         error.addProperty("error", message);
