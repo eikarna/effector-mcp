@@ -3,10 +3,12 @@ package eikarna.effector.action;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -55,18 +57,15 @@ public class ActionQueueController implements IActionQueueController {
                 return;
             }
 
-            // If an active timed step is ticking
             if (currentStep != null && currentStepRemainingTicks > 0) {
                 currentStepRemainingTicks--;
                 if (currentStepRemainingTicks <= 0) {
                     finishCurrentStep(client);
                 } else {
-                    // Still executing timed step (e.g. holding movement keys)
                     return;
                 }
             }
 
-            // Process next steps from queue
             while (!queue.isEmpty()) {
                 ActionStep step = queue.poll();
                 currentStep = step;
@@ -75,28 +74,29 @@ public class ActionQueueController implements IActionQueueController {
                 if ("move".equalsIgnoreCase(step.type)) {
                     applyMovementKeys(client, step.params, true);
                     currentStepRemainingTicks = Math.max(1, step.durationTicks);
-                    return; // Wait for movement duration to elapse over subsequent ticks
+                    return;
                 } else if ("wait".equalsIgnoreCase(step.type)) {
                     currentStepRemainingTicks = Math.max(1, step.durationTicks);
-                    return; // Pause for duration
+                    return;
                 } else {
-                    // Instant actions executed on the client thread
                     executeInstantAction(step);
                     currentStep = null;
                 }
             }
 
-            // All steps in batch completed
             if (queue.isEmpty() && isRunning.get()) {
                 isRunning.set(false);
                 releaseAllMovementKeys(client);
+                JsonObject res = new JsonObject();
+                res.addProperty("success", true);
+                res.addProperty("message", "All " + completedBatchSteps + " actions executed successfully");
+                res.addProperty("total_actions", totalBatchSteps);
+                res.addProperty("completed_actions", completedBatchSteps);
+                res.addProperty("timestamp", System.currentTimeMillis());
                 if (currentBatchFuture != null && !currentBatchFuture.isDone()) {
-                    JsonObject res = new JsonObject();
-                    res.addProperty("success", true);
-                    res.addProperty("message", "All " + completedBatchSteps + " actions executed successfully");
-                    res.addProperty("total_actions", totalBatchSteps);
                     currentBatchFuture.complete(res);
                 }
+                eikarna.effector.bridge.EventBroadcaster.getInstance().broadcast("action_queue_completed", res);
             }
         }
     }
@@ -108,6 +108,8 @@ public class ActionQueueController implements IActionQueueController {
                 case "look_at" -> playerActionController.lookAt(step.params);
                 case "interact" -> playerActionController.interactBlock(step.params);
                 case "attack" -> playerActionController.attackBlock(step.params);
+                case "attack_entity" -> playerActionController.attackEntity(step.params);
+                case "interact_entity" -> playerActionController.interactEntity(step.params);
                 case "use_item" -> playerActionController.useItem(step.params);
                 case "select_slot" -> playerActionController.selectSlot(step.params);
                 case "swap_hands" -> playerActionController.swapHands();
@@ -171,6 +173,10 @@ public class ActionQueueController implements IActionQueueController {
                 err.addProperty("error", "Action queue was cancelled");
                 currentBatchFuture.complete(err);
             }
+            JsonObject cancelEvent = new JsonObject();
+            cancelEvent.addProperty("status", "cancelled");
+            cancelEvent.addProperty("timestamp", System.currentTimeMillis());
+            eikarna.effector.bridge.EventBroadcaster.getInstance().broadcast("action_queue_cancelled", cancelEvent);
         }
     }
 
@@ -195,7 +201,6 @@ public class ActionQueueController implements IActionQueueController {
                 return err;
             }
 
-            // If previous batch was running, clear and override
             releaseAllMovementKeys(client);
             queue.clear();
             currentStep = null;
@@ -216,8 +221,7 @@ public class ActionQueueController implements IActionQueueController {
 
         if (waitCompletion) {
             try {
-                // Wait up to 30 seconds for the macro batch to complete
-                return currentBatchFuture.get(30, TimeUnit.SECONDS);
+                return currentBatchFuture.get(60, TimeUnit.SECONDS);
             } catch (Exception e) {
                 JsonObject err = new JsonObject();
                 err.addProperty("isError", true);
@@ -255,5 +259,88 @@ public class ActionQueueController implements IActionQueueController {
             res.addProperty("remaining_ticks", currentStepRemainingTicks);
             return res;
         }
+    }
+
+    @Override
+    public JsonObject navigateTo(JsonObject arguments) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Player or world not available");
+            return err;
+        }
+
+        if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+            return err;
+        }
+
+        int targetX = (int) Math.floor(arguments.get("x").getAsDouble());
+        int targetY = (int) Math.floor(arguments.get("y").getAsDouble());
+        int targetZ = (int) Math.floor(arguments.get("z").getAsDouble());
+
+        boolean sprint = !arguments.has("sprint") || arguments.get("sprint").getAsBoolean();
+        boolean waitCompletion = !arguments.has("wait_completion") || arguments.get("wait_completion").getAsBoolean();
+        int maxNodes = arguments.has("max_nodes") ? arguments.get("max_nodes").getAsInt() : 4000;
+
+        BlockPos start = client.player.blockPosition();
+        BlockPos goal = new BlockPos(targetX, targetY, targetZ);
+
+        double directDist = Math.sqrt(start.distSqr(goal));
+        if (directDist > 128.0) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Target is too far for single pathfinding run (distance: " + Math.round(directDist) + ", max: 128 blocks)");
+            return err;
+        }
+
+        List<BlockPos> path = VoxelPathfinder.findPath(client.level, start, goal, maxNodes);
+        if (path.isEmpty()) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "No safe walkable path found from " + start.toShortString() + " to " + goal.toShortString());
+            return err;
+        }
+
+        JsonArray actions = VoxelPathfinder.pathToActions(path, sprint);
+
+        JsonObject executeArgs = new JsonObject();
+        executeArgs.add("actions", actions);
+        executeArgs.addProperty("wait_completion", waitCompletion);
+
+        JsonObject execResult = executeActions(executeArgs);
+
+        JsonObject res = new JsonObject();
+        res.addProperty("success", execResult.has("success") && execResult.get("success").getAsBoolean());
+        res.addProperty("path_blocks", path.size());
+        res.addProperty("actions_generated", actions.size());
+
+        JsonObject startObj = new JsonObject();
+        startObj.addProperty("x", start.getX());
+        startObj.addProperty("y", start.getY());
+        startObj.addProperty("z", start.getZ());
+        res.add("start", startObj);
+
+        JsonObject targetObj = new JsonObject();
+        targetObj.addProperty("x", targetX);
+        targetObj.addProperty("y", targetY);
+        targetObj.addProperty("z", targetZ);
+        res.add("target", targetObj);
+
+        BlockPos finalPathNode = path.get(path.size() - 1);
+        boolean reached = finalPathNode.distSqr(goal) <= 4;
+        res.addProperty("reached_target", reached);
+
+        if (execResult.has("message")) {
+            res.addProperty("execution_message", execResult.get("message").getAsString());
+        }
+        if (execResult.has("error")) {
+            res.addProperty("error", execResult.get("error").getAsString());
+        }
+
+        return res;
     }
 }

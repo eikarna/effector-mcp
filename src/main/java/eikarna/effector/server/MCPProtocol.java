@@ -493,6 +493,150 @@ public class MCPProtocol {
             tools.add(takeScreenshotTool);
         }
         
+        // Scan entities tool
+        JsonObject scanEntitiesTool = new JsonObject();
+        scanEntitiesTool.addProperty("name", "scan_entities");
+        scanEntitiesTool.addProperty("description",
+            "Perception radar: scans all entities in the active world around the player within radius.\n" +
+            "Detects mobs (hostile/passive), other players, dropped items, and projectiles.\n" +
+            "Returns entity ID, UUID, display name, type ID, category, coordinates, distance to player, health (current/max for living), and item stack info (for item entities)."
+        );
+        JsonObject scanEntitiesSchema = new JsonObject();
+        scanEntitiesSchema.addProperty("type", "object");
+        JsonObject scanEntitiesProps = new JsonObject();
+
+        JsonObject radiusProp = new JsonObject();
+        radiusProp.addProperty("type", "number");
+        radiusProp.addProperty("description", "Search radius in blocks around the player (default: 32.0, min: 1.0, max: 128.0)");
+        radiusProp.addProperty("default", 32.0);
+        scanEntitiesProps.add("radius", radiusProp);
+
+        JsonObject typeProp = new JsonObject();
+        typeProp.addProperty("type", "string");
+        typeProp.addProperty("description", "Filter by category or type substring: 'hostile', 'passive', 'player', 'item', 'mobs', 'projectile', 'living', or 'all' (default: 'all')");
+        scanEntitiesProps.add("type", typeProp);
+
+        JsonObject limitProp = new JsonObject();
+        limitProp.addProperty("type", "integer");
+        limitProp.addProperty("description", "Maximum entities to return (default: 50, max: 200)");
+        limitProp.addProperty("default", 50);
+        scanEntitiesProps.add("limit", limitProp);
+
+        scanEntitiesSchema.add("properties", scanEntitiesProps);
+        scanEntitiesTool.add("inputSchema", scanEntitiesSchema);
+        tools.add(scanEntitiesTool);
+
+        // Attack entity tool
+        JsonObject attackEntityTool = new JsonObject();
+        attackEntityTool.addProperty("name", "attack_entity");
+        attackEntityTool.addProperty("description",
+            "Attack a specific target entity in range (reach limit: 6.0 blocks) using currently equipped main-hand weapon.\n" +
+            "Specify either 'entity_id' (integer ID from scan_entities) or 'uuid' (string)."
+        );
+        JsonObject attackEntitySchema = new JsonObject();
+        attackEntitySchema.addProperty("type", "object");
+        JsonObject attackEntityProps = new JsonObject();
+
+        JsonObject entIdProp = new JsonObject();
+        entIdProp.addProperty("type", "integer");
+        entIdProp.addProperty("description", "Entity ID (from scan_entities)");
+        attackEntityProps.add("entity_id", entIdProp);
+
+        JsonObject uuidProp = new JsonObject();
+        uuidProp.addProperty("type", "string");
+        uuidProp.addProperty("description", "Entity UUID string");
+        attackEntityProps.add("uuid", uuidProp);
+
+        attackEntitySchema.add("properties", attackEntityProps);
+        attackEntityTool.add("inputSchema", attackEntitySchema);
+        tools.add(attackEntityTool);
+
+        // Interact entity tool
+        JsonObject interactEntityTool = new JsonObject();
+        interactEntityTool.addProperty("name", "interact_entity");
+        interactEntityTool.addProperty("description",
+            "Interact or use currently held item on a specific target entity (reach limit: 6.0 blocks).\n" +
+            "Supports trading with villagers, breeding/feeding animals, shearing sheep, mounting horses/boats, etc.\n" +
+            "Specify either 'entity_id' (integer ID from scan_entities) or 'uuid' (string), and optional 'hand'."
+        );
+        JsonObject interactEntitySchema = new JsonObject();
+        interactEntitySchema.addProperty("type", "object");
+        JsonObject interactEntityProps = new JsonObject();
+
+        JsonObject interactEntIdProp = new JsonObject();
+        interactEntIdProp.addProperty("type", "integer");
+        interactEntIdProp.addProperty("description", "Entity ID (from scan_entities)");
+        interactEntityProps.add("entity_id", interactEntIdProp);
+
+        JsonObject interactUuidProp = new JsonObject();
+        interactUuidProp.addProperty("type", "string");
+        interactUuidProp.addProperty("description", "Entity UUID string");
+        interactEntityProps.add("uuid", interactUuidProp);
+
+        JsonObject handProp = new JsonObject();
+        handProp.addProperty("type", "string");
+        handProp.addProperty("description", "Hand to interact with: 'main' or 'off' (default: 'main')");
+        interactEntityProps.add("hand", handProp);
+
+        interactEntitySchema.add("properties", interactEntityProps);
+        interactEntityTool.add("inputSchema", interactEntitySchema);
+        tools.add(interactEntityTool);
+
+        // Navigate to tool
+        JsonObject navigateToTool = new JsonObject();
+        navigateToTool.addProperty("name", "navigate_to");
+        navigateToTool.addProperty("description",
+            "Autonomous 3D voxel pathfinding to reach destination coordinates (x, y, z).\n" +
+            "Features native A* pathfinder with auto-jumping, step-downs, and hazard avoidance (lava/cacti/berries).\n" +
+            "Automatically generates and executes a sequence of tick-synchronized movement and rotation actions in the ActionQueue."
+        );
+        JsonObject navigateToSchema = new JsonObject();
+        navigateToSchema.addProperty("type", "object");
+        JsonObject navigateToProps = new JsonObject();
+
+        JsonObject navX = new JsonObject();
+        navX.addProperty("type", "number");
+        navX.addProperty("description", "Target X coordinate");
+        navigateToProps.add("x", navX);
+
+        JsonObject navY = new JsonObject();
+        navY.addProperty("type", "number");
+        navY.addProperty("description", "Target Y coordinate");
+        navigateToProps.add("y", navY);
+
+        JsonObject navZ = new JsonObject();
+        navZ.addProperty("type", "number");
+        navZ.addProperty("description", "Target Z coordinate");
+        navigateToProps.add("z", navZ);
+
+        JsonObject navSprint = new JsonObject();
+        navSprint.addProperty("type", "boolean");
+        navSprint.addProperty("description", "Whether to sprint along flat segments (default: true)");
+        navSprint.addProperty("default", true);
+        navigateToProps.add("sprint", navSprint);
+
+        JsonObject navWait = new JsonObject();
+        navWait.addProperty("type", "boolean");
+        navWait.addProperty("description", "Whether to wait until destination is reached (default: true)");
+        navWait.addProperty("default", true);
+        navigateToProps.add("wait_completion", navWait);
+
+        JsonObject navMaxNodes = new JsonObject();
+        navMaxNodes.addProperty("type", "integer");
+        navMaxNodes.addProperty("description", "Maximum pathfinder nodes to explore (default: 4000)");
+        navMaxNodes.addProperty("default", 4000);
+        navigateToProps.add("max_nodes", navMaxNodes);
+
+        JsonArray navRequired = new JsonArray();
+        navRequired.add("x");
+        navRequired.add("y");
+        navRequired.add("z");
+        navigateToSchema.add("required", navRequired);
+
+        navigateToSchema.add("properties", navigateToProps);
+        navigateToTool.add("inputSchema", navigateToSchema);
+        tools.add(navigateToTool);
+
         return tools;
     }
     

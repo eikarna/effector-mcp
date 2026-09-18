@@ -24,4 +24,9 @@ public class ServerActionQueueController implements IActionQueueController {
     public JsonObject getQueueStatus() {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject navigateTo(JsonObject arguments) {
+        return notAvailable();
+    }
 }

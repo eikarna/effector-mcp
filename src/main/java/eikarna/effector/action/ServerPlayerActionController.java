@@ -31,6 +31,16 @@ public class ServerPlayerActionController implements IPlayerActionController {
     }
 
     @Override
+    public JsonObject attackEntity(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject interactEntity(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
     public JsonObject useItem(JsonObject arguments) {
         return notAvailable();
     }

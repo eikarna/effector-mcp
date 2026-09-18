@@ -7,6 +7,8 @@ public interface IPlayerActionController {
     JsonObject lookAt(JsonObject arguments);
     JsonObject interactBlock(JsonObject arguments);
     JsonObject attackBlock(JsonObject arguments);
+    JsonObject attackEntity(JsonObject arguments);
+    JsonObject interactEntity(JsonObject arguments);
     JsonObject useItem(JsonObject arguments);
     JsonObject selectSlot(JsonObject arguments);
     JsonObject swapHands();

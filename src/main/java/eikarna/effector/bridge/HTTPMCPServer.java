@@ -18,6 +18,8 @@ import eikarna.effector.server.MCPProtocol;
 import eikarna.effector.utils.IPlayerInfoProvider;
 import eikarna.effector.utils.IBlockScanner;
 import eikarna.effector.utils.IScreenshotUtils;
+import eikarna.effector.utils.IEntityScanner;
+import eikarna.effector.server.tools.ServerEntityScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +47,7 @@ public class HTTPMCPServer {
     private final IPlayerActionController playerActionController;
     private final IContainerController containerController;
     private final IActionQueueController actionQueueController;
+    private final IEntityScanner entityScanner;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private HttpServer httpServer;
     private ExecutorService executor;
@@ -88,6 +91,21 @@ public class HTTPMCPServer {
         IActionQueueController actionQueueController,
         boolean screenshotToolEnabled
     ) {
+        this(config, commandExecutor, playerInfoProvider, blockScanner, screenshotUtils, playerActionController, containerController, actionQueueController, null, screenshotToolEnabled);
+    }
+
+    public HTTPMCPServer(
+        MCPConfig config,
+        ICommandExecutor commandExecutor,
+        IPlayerInfoProvider playerInfoProvider,
+        IBlockScanner blockScanner,
+        IScreenshotUtils screenshotUtils,
+        IPlayerActionController playerActionController,
+        IContainerController containerController,
+        IActionQueueController actionQueueController,
+        IEntityScanner entityScanner,
+        boolean screenshotToolEnabled
+    ) {
         this.config = config;
         this.commandExecutor = commandExecutor;
         this.playerInfoProvider = playerInfoProvider;
@@ -96,6 +114,7 @@ public class HTTPMCPServer {
         this.playerActionController = playerActionController != null ? playerActionController : new ServerPlayerActionController();
         this.containerController = containerController != null ? containerController : new ServerContainerController();
         this.actionQueueController = actionQueueController != null ? actionQueueController : new ServerActionQueueController();
+        this.entityScanner = entityScanner != null ? entityScanner : new ServerEntityScanner();
         this.screenshotToolEnabled = screenshotToolEnabled;
     }
     
@@ -113,6 +132,10 @@ public class HTTPMCPServer {
         
         httpServer = HttpServer.create(address, 0);
         httpServer.createContext("/mcp", new MCPHandler());
+        SSEHandler sseHandler = new SSEHandler();
+        httpServer.createContext("/events", sseHandler);
+        httpServer.createContext("/mcp/events", sseHandler);
+        httpServer.createContext("/sse", sseHandler);
         
         executor = Executors.newCachedThreadPool();
         httpServer.setExecutor(executor);
@@ -128,6 +151,7 @@ public class HTTPMCPServer {
         if (running.get()) {
             running.set(false);
             
+            EventBroadcaster.getInstance().closeAll();
             if (httpServer != null) {
                 httpServer.stop(0);
             }
@@ -412,6 +436,18 @@ public class HTTPMCPServer {
                 case "close_container" -> {
                     return wrapToolResult(containerController.closeContainer());
                 }
+                case "scan_entities" -> {
+                    return wrapToolResult(entityScanner.scanEntities(arguments));
+                }
+                case "attack_entity" -> {
+                    return wrapToolResult(playerActionController.attackEntity(arguments));
+                }
+                case "interact_entity" -> {
+                    return wrapToolResult(playerActionController.interactEntity(arguments));
+                }
+                case "navigate_to" -> {
+                    return wrapToolResult(actionQueueController.navigateTo(arguments));
+                }
                 case null, default -> {
                     JsonObject error = new JsonObject();
                     error.addProperty("isError", true);
@@ -579,6 +615,24 @@ public class HTTPMCPServer {
             err.addProperty("isError", true);
             err.addProperty("error", "Resource not found: " + uri);
             return err;
+        }
+    }
+
+    private static class SSEHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+                EventBroadcaster.getInstance().registerClient(exchange);
+            } else if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+                exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, OPTIONS");
+                exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
+                exchange.sendResponseHeaders(204, -1);
+                exchange.close();
+            } else {
+                exchange.sendResponseHeaders(405, -1);
+                exchange.close();
+            }
         }
     }
 

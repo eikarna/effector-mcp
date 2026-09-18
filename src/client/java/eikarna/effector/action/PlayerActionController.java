@@ -5,17 +5,21 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -251,6 +255,124 @@ public class PlayerActionController implements IPlayerActionController {
             res.addProperty("targetZ", z);
             return res;
         });
+    }
+
+    @Override
+    public JsonObject attackEntity(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            Entity target = findEntity(client, arguments);
+            if (target == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target entity not found. Specify valid 'entity_id' (int) or 'uuid' (string)");
+                return err;
+            }
+
+            if (!target.isAlive()) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target entity is dead or despawned");
+                return err;
+            }
+
+            double dist = Math.sqrt(player.distanceToSqr(target));
+            if (dist > 6.0) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target entity is out of reach (distance: " + (Math.round(dist * 100.0) / 100.0) + ", max reach: 6.0)");
+                return err;
+            }
+
+            if (client.gameMode == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "GameMode is null");
+                return err;
+            }
+
+            client.gameMode.attack(player, target);
+            player.swing(InteractionHand.MAIN_HAND);
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("attacked_entity_id", target.getId());
+            res.addProperty("attacked_entity_type", BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).toString());
+            res.addProperty("distance", Math.round(dist * 100.0) / 100.0);
+            return res;
+        });
+    }
+
+    @Override
+    public JsonObject interactEntity(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            Entity target = findEntity(client, arguments);
+            if (target == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target entity not found. Specify valid 'entity_id' (int) or 'uuid' (string)");
+                return err;
+            }
+
+            if (!target.isAlive()) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target entity is dead or despawned");
+                return err;
+            }
+
+            double dist = Math.sqrt(player.distanceToSqr(target));
+            if (dist > 6.0) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Target entity is out of reach (distance: " + (Math.round(dist * 100.0) / 100.0) + ", max reach: 6.0)");
+                return err;
+            }
+
+            if (client.gameMode == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "GameMode is null");
+                return err;
+            }
+
+            InteractionHand hand = InteractionHand.MAIN_HAND;
+            if (arguments != null && arguments.has("hand")) {
+                String handStr = arguments.get("hand").getAsString().toLowerCase(Locale.ROOT);
+                if (handStr.contains("off") || handStr.contains("second")) {
+                    hand = InteractionHand.OFF_HAND;
+                }
+            }
+
+            EntityHitResult hitResult = new EntityHitResult(target, target.position());
+            InteractionResult result = client.gameMode.interact(player, target, hitResult, hand);
+            player.swing(hand);
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", result.consumesAction());
+            res.addProperty("result", result.toString());
+            res.addProperty("interacted_entity_id", target.getId());
+            res.addProperty("interacted_entity_type", BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()).toString());
+            res.addProperty("hand", hand.name());
+            return res;
+        });
+    }
+
+    private Entity findEntity(Minecraft client, JsonObject arguments) {
+        if (arguments == null || client.level == null) return null;
+        if (arguments.has("entity_id")) {
+            int id = arguments.get("entity_id").getAsInt();
+            return client.level.getEntity(id);
+        }
+        if (arguments.has("uuid")) {
+            String uuidStr = arguments.get("uuid").getAsString();
+            try {
+                UUID uuid = UUID.fromString(uuidStr);
+                for (Entity e : client.level.entitiesForRendering()) {
+                    if (e.getUUID().equals(uuid)) return e;
+                }
+            } catch (Exception ignored) {}
+        }
+        return null;
     }
 
     @Override

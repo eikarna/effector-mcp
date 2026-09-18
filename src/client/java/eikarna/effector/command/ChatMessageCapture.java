@@ -24,6 +24,13 @@ public class ChatMessageCapture {
         if (capturing && message != null) {
             messageQueue.offer(new CapturedMessage(message, System.currentTimeMillis(), source));
         }
+        if (message != null) {
+            com.google.gson.JsonObject chatObj = new com.google.gson.JsonObject();
+            chatObj.addProperty("text", message);
+            chatObj.addProperty("source", source.name());
+            chatObj.addProperty("timestamp", System.currentTimeMillis());
+            eikarna.effector.bridge.EventBroadcaster.getInstance().broadcast("chat_message", chatObj);
+        }
     }
     
     public void startCapturing() {

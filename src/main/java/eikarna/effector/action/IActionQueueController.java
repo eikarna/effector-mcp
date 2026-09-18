@@ -6,4 +6,5 @@ public interface IActionQueueController {
     JsonObject executeActions(JsonObject arguments);
     JsonObject cancelActions();
     JsonObject getQueueStatus();
+    JsonObject navigateTo(JsonObject arguments);
 }

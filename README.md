@@ -63,6 +63,21 @@ Executing camera sweeps and multi-axis rotations synchronized to engine ticks:
 
 ![Physics Macro](docs/assets/demos/demo_05_action_queue.gif)
 
+### 8. 🧭 Native 3D Voxel Pathfinding
+Zero-dependency 3D A-Star navigation computing walkable routes across multi-tier elevation, climbing staircases, navigating around obstacles, and reaching target coordinates:
+
+![3D Voxel Pathfinding](docs/assets/demos/demo_08_3d_pathfinding.gif)
+
+### 9. ⚔️ Perception Radar & Combat Actuator
+360-degree entity radar scanning surrounding mobs, dynamically tracking hostile targets, sprinting to engage in melee combat, and interacting with passive wildlife:
+
+![Perception Radar and Combat](docs/assets/demos/demo_09_entity_radar_combat.gif)
+
+### 10. ⚡ Real-Time Zero-Polling SSE Event Streaming
+Subscribing to game-tick event streams (`/events`) capturing player messages, action queue states, and physical completions with zero polling overhead:
+
+![Real-Time SSE Event Streaming](docs/assets/demos/demo_10_sse_streaming.gif)
+
 ---
 
 ## 🛠️ Tool Reference (18 Native Tools)
@@ -81,6 +96,10 @@ Executing camera sweeps and multi-axis rotations synchronized to engine ticks:
 | `close_container` | Client | Closes currently active GUI menu and returns focus to world. |
 | `interact_block` | Client | Performs right-click interaction on blocks (chests, workstations, levers, doors). Supports main and off-hand. |
 | `attack_block` | Client | Initiates attack or mining on targeted block coordinate. |
+| `attack_entity` | Client | Attacks target entity in range (max reach 6.0) with equipped weapon by `entity_id` or `uuid`. |
+| `interact_entity` | Client | Interacts / uses held item on target entity (villager trade, feed/breed, mount, shear). |
+| `scan_entities` | Client | **Perception Radar**: Scans all active entities around player (hostile/passive mobs, players, items, projectiles) with distance, HP, and equipment. |
+| `navigate_to` | Client | **Native 3D Voxel Pathfinding**: A* engine computes safe walkable route to (X, Y, Z) with auto-jump, step-down, and hazard avoidance, executing via ActionQueue. |
 | `use_item` | Client | Simulates right-click using current carried item in `main_hand` or `off_hand`. |
 | `swap_hands` | Client | Swaps item between main hand and off-hand (F key simulation). |
 | `select_slot` | Client | Selects active hotbar slot (0 to 8). |
@@ -116,6 +135,15 @@ Executing camera sweeps and multi-axis rotations synchronized to engine ticks:
   }
 }
 ```
+
+### 4. Real-Time Event-Driven Streaming (SSE / Zero-Polling)
+Effector MCP provides a zero-polling **Server-Sent Events (SSE)** stream at `http://127.0.0.1:8080/events` (or `/mcp/events` / `/sse`). AI harnesses can listen for reactive push notifications:
+* `action_queue_completed`: Dispatched the instant a 20 TPS physics macro or navigation finishes (`total_actions`, `completed_actions`, `success`).
+* `action_queue_cancelled`: Dispatched when actions are cancelled via emergency brake.
+* `chat_message`: Real-time player and system chat messages (`text`, `source`, `timestamp`).
+* `damage_taken`: Dispatched when the player takes damage (`previous_health`, `current_health`, `damage`).
+* `player_died`: Dispatched upon player death with location coordinates.
+* Keep-alive ping comments every 15 seconds prevent connection drops.
 
 #### Cursor IDE (`.cursor/mcp.json`):
 ```json

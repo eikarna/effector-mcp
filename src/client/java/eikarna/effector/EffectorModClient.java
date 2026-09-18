@@ -27,6 +27,46 @@ public class EffectorModClient implements ClientModInitializer {
 		ClientTickEvents.END_CLIENT_TICK.register(ScreenshotUtils::onEndTick);
 		ClientTickEvents.END_CLIENT_TICK.register(actionQueueController::onClientTick);
 		
+		// Register damage & death SSE event watcher
+		ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEvents.EndTick() {
+			private float lastHealth = -1.0f;
+			private boolean lastAlive = true;
+
+			@Override
+			public void onEndTick(net.minecraft.client.Minecraft client) {
+				if (client.player != null && client.level != null) {
+					float curHealth = client.player.getHealth();
+					float maxHealth = client.player.getMaxHealth();
+					boolean alive = client.player.isAlive();
+
+					if (lastHealth >= 0.0f && curHealth < lastHealth) {
+						com.google.gson.JsonObject dmg = new com.google.gson.JsonObject();
+						dmg.addProperty("previous_health", Math.round(lastHealth * 10.0f) / 10.0f);
+						dmg.addProperty("current_health", Math.round(curHealth * 10.0f) / 10.0f);
+						dmg.addProperty("max_health", Math.round(maxHealth * 10.0f) / 10.0f);
+						dmg.addProperty("damage", Math.round((lastHealth - curHealth) * 10.0f) / 10.0f);
+						dmg.addProperty("timestamp", System.currentTimeMillis());
+						eikarna.effector.bridge.EventBroadcaster.getInstance().broadcast("damage_taken", dmg);
+					}
+
+					if (lastAlive && !alive) {
+						com.google.gson.JsonObject death = new com.google.gson.JsonObject();
+						death.addProperty("timestamp", System.currentTimeMillis());
+						death.addProperty("x", Math.round(client.player.getX() * 100.0) / 100.0);
+						death.addProperty("y", Math.round(client.player.getY() * 100.0) / 100.0);
+						death.addProperty("z", Math.round(client.player.getZ() * 100.0) / 100.0);
+						eikarna.effector.bridge.EventBroadcaster.getInstance().broadcast("player_died", death);
+					}
+
+					lastHealth = curHealth;
+					lastAlive = alive;
+				} else {
+					lastHealth = -1.0f;
+					lastAlive = true;
+				}
+			}
+		});
+		
 		try {
 			MCPConfig config = MCPConfig.load();
 			if (config.getServer().isAutoStart()) {
@@ -42,6 +82,7 @@ public class EffectorModClient implements ClientModInitializer {
 						playerActionController,
 						containerController,
 						actionQueueController,
+						new eikarna.effector.utils.EntityScanner(),
 						true
 					);
 					httpServer.start();
