@@ -1,0 +1,1989 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Autonomous AI Agent MCP Protocol Bridge for Minecraft 26.2">
+      
+      
+        <meta name="author" content="eikarna">
+      
+      
+        <link rel="canonical" href="https://eikarna.github.io/effector-mcp/reference/tools/">
+      
+      
+        <link rel="prev" href="../../tutorials/sse-streaming/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Tool Reference - Effector MCP</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tool-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Effector MCP" class="md-header__button md-logo" aria-label="Effector MCP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Effector MCP
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tool Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/eikarna/effector-mcp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eikarna/effector-mcp
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Overview
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../showcase/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Visual Showcase
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/installation/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorials/" class="md-tabs__link">
+          
+  
+  
+  Tutorials
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Tool Reference
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Effector MCP" class="md-nav__button md-logo" aria-label="Effector MCP" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Effector MCP
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/eikarna/effector-mcp" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eikarna/effector-mcp
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../showcase/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visual Showcase
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/agent-setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Agent Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/camera-and-actions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Camera & Physics Macros
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/crafting-and-containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3x3 Crafting & Containers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/autonomous-bridging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Autonomous Sneak-Bridging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/pathfinding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    3D Voxel Pathfinding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/combat-and-radar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Perception Radar & Combat
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorials/sse-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Real-Time SSE Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#perception-vision-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perception &amp; Vision Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Perception &amp; Vision Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get_player_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_player_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_blocks_in_area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_blocks_in_area
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scan_chunk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        scan_chunk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scan_entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        scan_entities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#take_screenshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        take_screenshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motion-actuator-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion &amp; Actuator Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Motion &amp; Actuator Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set_player_look" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set_player_look
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#look_at" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        look_at
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#select_slot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        select_slot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#swap_hands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        swap_hands
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use_item" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        use_item
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#world-interaction-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        World Interaction Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="World Interaction Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interact_block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interact_block
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#attack_block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        attack_block
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#combat-interaction-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combat &amp; Interaction Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Combat &amp; Interaction Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#attack_entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        attack_entity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interact_entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interact_entity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pathfinding-navigation-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pathfinding &amp; Navigation Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pathfinding &amp; Navigation Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#navigate_to" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        navigate_to
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#macro-action-queue-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro &amp; Action Queue Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Macro &amp; Action Queue Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#execute_actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        execute_actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_queue_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_queue_status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancel_actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cancel_actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-inventory-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container &amp; Inventory Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Container &amp; Inventory Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get_open_container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_open_container
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#click_container_slot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        click_container_slot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#click_container_button" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        click_container_button
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#close_container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        close_container
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#perception-vision-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Perception &amp; Vision Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Perception &amp; Vision Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get_player_info" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_player_info
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_blocks_in_area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_blocks_in_area
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scan_chunk" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        scan_chunk
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scan_entities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        scan_entities
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#take_screenshot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        take_screenshot
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motion-actuator-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Motion &amp; Actuator Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Motion &amp; Actuator Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set_player_look" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set_player_look
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#look_at" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        look_at
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#select_slot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        select_slot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#swap_hands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        swap_hands
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#use_item" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        use_item
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#world-interaction-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        World Interaction Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="World Interaction Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#interact_block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interact_block
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#attack_block" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        attack_block
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#combat-interaction-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Combat &amp; Interaction Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Combat &amp; Interaction Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#attack_entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        attack_entity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interact_entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        interact_entity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pathfinding-navigation-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pathfinding &amp; Navigation Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pathfinding &amp; Navigation Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#navigate_to" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        navigate_to
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#macro-action-queue-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Macro &amp; Action Queue Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Macro &amp; Action Queue Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#execute_actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        execute_actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_queue_status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_queue_status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cancel_actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cancel_actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#container-inventory-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Container &amp; Inventory Tools
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Container &amp; Inventory Tools">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get_open_container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        get_open_container
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#click_container_slot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        click_container_slot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#click_container_button" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        click_container_button
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#close_container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        close_container
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="tool-reference">Tool Reference</h1>
+<p>Effector MCP exposes 22 client-side native tools for autonomous AI agents. Every tool runs directly inside the Minecraft Fabric client engine on the main render thread.</p>
+<hr />
+<h2 id="perception-vision-tools">Perception &amp; Vision Tools</h2>
+<h3 id="get_player_info"><code>get_player_info</code></h3>
+<p>Returns real-time data about the local player's state.</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>name</code> (string): Player username.</li>
+<li><code>position</code> (object): Decimal coordinates <code>x</code>, <code>y</code>, <code>z</code>.</li>
+<li><code>blockPosition</code> (object): Discrete block coordinates <code>x</code>, <code>y</code>, <code>z</code>.</li>
+<li><code>yaw</code> (number): Horizontal camera rotation degrees.</li>
+<li><code>pitch</code> (number): Vertical camera rotation degrees.</li>
+<li><code>health</code> (number): Current health points (max 20.0).</li>
+<li><code>foodLevel</code> (integer): Food saturation level (max 20).</li>
+<li><code>armor</code> (integer): Total armor defense points.</li>
+<li><code>air</code> (integer): Remaining air supply ticks underwater.</li>
+<li><code>inventory</code> (array): List of items currently held in hotbar and main inventory.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="get_blocks_in_area"><code>get_blocks_in_area</code></h3>
+<p>Scans a 3D bounding box of blocks between two opposite corners.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>from</code> (object, required): Start corner <code>{ "x": int, "y": int, "z": int }</code>.</li>
+<li><code>to</code> (object, required): End corner <code>{ "x": int, "y": int, "z": int }</code>.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>total_blocks</code> (integer): Count of non-air blocks.</li>
+<li><code>blocks</code> (array): Compressed list of block types and coordinate regions.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="scan_chunk"><code>scan_chunk</code></h3>
+<p>Scans an entire voxel chunk column with customizable altitude bounds.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>chunk_x</code> (integer, optional): Chunk X coordinate (defaults to player chunk).</li>
+<li><code>chunk_z</code> (integer, optional): Chunk Z coordinate (defaults to player chunk).</li>
+<li><code>min_y</code> (integer, optional): Lower altitude bound.</li>
+<li><code>max_y</code> (integer, optional): Upper altitude bound.</li>
+<li><code>filter</code> (string, optional): Substring filter for block IDs (e.g. <code>"ore"</code>).</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: Run-length encoded voxel chunk data.</li>
+</ul>
+<hr />
+<h3 id="scan_entities"><code>scan_entities</code></h3>
+<p>Perception radar scanning for living mobs, items, projectiles, and players in a 360-degree sphere.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>radius</code> (number, optional, default: 32.0): Search radius in blocks (1.0 to 128.0).</li>
+<li><code>type</code> (string, optional, default: "all"): Filter category (<code>all</code>, <code>hostile</code>, <code>passive</code>, <code>player</code>, <code>item</code>, <code>projectile</code>, or custom name).</li>
+<li><code>limit</code> (integer, optional, default: 50): Maximum number of entities to return.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>total_matching</code> (integer): Number of entities found.</li>
+<li><code>entities</code> (array): List of entity records containing <code>id</code>, <code>uuid</code>, <code>name</code>, <code>type</code>, <code>position</code>, <code>distance</code>, <code>health</code>, <code>max_health</code>, and <code>items</code>.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="take_screenshot"><code>take_screenshot</code></h3>
+<p>Captures the current Minecraft client viewport frame.</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>data</code> (string): Base64-encoded PNG image.</li>
+<li><code>mimeType</code> (string): <code>"image/png"</code>.</li>
+<li><code>width</code> (integer): Frame width (e.g. 1920).</li>
+<li><code>height</code> (integer): Frame height (e.g. 1080).</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="motion-actuator-tools">Motion &amp; Actuator Tools</h2>
+<h3 id="set_player_look"><code>set_player_look</code></h3>
+<p>Sets absolute camera yaw and pitch angles.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>yaw</code> (number, required): Horizontal rotation degrees (-180.0 to 180.0).</li>
+<li><code>pitch</code> (number, required): Vertical rotation degrees (-90.0 to 90.0, automatically clamped).</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean).</li>
+</ul>
+<hr />
+<h3 id="look_at"><code>look_at</code></h3>
+<p>Points the player's crosshairs directly at target world coordinates.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>x</code> (number, required): Target X coordinate.</li>
+<li><code>y</code> (number, required): Target Y coordinate.</li>
+<li><code>z</code> (number, required): Target Z coordinate.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>success</code> (boolean): <code>true</code>.</li>
+<li><code>yaw</code> (number): Calculated yaw.</li>
+<li><code>pitch</code> (number): Calculated pitch.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="select_slot"><code>select_slot</code></h3>
+<p>Changes the active hotbar slot.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>slot</code> (integer, required): Hotbar slot index (0 to 8).</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>selected_slot</code> (integer).</li>
+</ul>
+<hr />
+<h3 id="swap_hands"><code>swap_hands</code></h3>
+<p>Swaps the item in the player's main hand with the off-hand (emulates pressing F).</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean).</li>
+</ul>
+<hr />
+<h3 id="use_item"><code>use_item</code></h3>
+<p>Right-clicks using the currently carried item in the specified hand.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>hand</code> (string, optional, default: "main_hand"): <code>"main_hand"</code> or <code>"off_hand"</code>.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>usedItem</code> (string).</li>
+</ul>
+<hr />
+<h2 id="world-interaction-tools">World Interaction Tools</h2>
+<h3 id="interact_block"><code>interact_block</code></h3>
+<p>Performs a right-click interaction on a specific block face.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>x</code> (integer, required): Block X coordinate.</li>
+<li><code>y</code> (integer, required): Block Y coordinate.</li>
+<li><code>z</code> (integer, required): Block Z coordinate.</li>
+<li><code>direction</code> (string, optional, default: "up"): Face to interact with (<code>up</code>, <code>down</code>, <code>north</code>, <code>south</code>, <code>east</code>, <code>west</code>).</li>
+<li><code>hand</code> (string, optional, default: "main_hand"): Hand to use.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>result</code> (string).</li>
+</ul>
+<hr />
+<h3 id="attack_block"><code>attack_block</code></h3>
+<p>Initiates mining or left-click attack on a targeted block coordinate.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>x</code> (integer, required): Block X coordinate.</li>
+<li><code>y</code> (integer, required): Block Y coordinate.</li>
+<li><code>z</code> (integer, required): Block Z coordinate.</li>
+<li><code>direction</code> (string, optional, default: "up"): Face direction.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>destroyed</code> (boolean).</li>
+</ul>
+<hr />
+<h2 id="combat-interaction-tools">Combat &amp; Interaction Tools</h2>
+<h3 id="attack_entity"><code>attack_entity</code></h3>
+<p>Attacks a targeted entity within reach distance (max 6.0 blocks) using the equipped weapon.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>entity_id</code> (integer, optional): Entity network ID.</li>
+<li><code>uuid</code> (string, optional): Entity UUID.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>damage_dealt</code> (boolean).</li>
+</ul>
+<hr />
+<h3 id="interact_entity"><code>interact_entity</code></h3>
+<p>Interacts with an entity (e.g. trading with Villagers, breeding animals, shearing sheep, or mounting horses).</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>entity_id</code> (integer, optional): Target entity ID.</li>
+<li><code>uuid</code> (string, optional): Target entity UUID.</li>
+<li><code>hand</code> (string, optional, default: "main_hand"): Hand to use.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean).</li>
+</ul>
+<hr />
+<h2 id="pathfinding-navigation-tools">Pathfinding &amp; Navigation Tools</h2>
+<h3 id="navigate_to"><code>navigate_to</code></h3>
+<p>Executes native 3D Voxel A* pathfinding to calculate and traverse a safe route to the target position.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>x</code> (number, required): Target X coordinate.</li>
+<li><code>y</code> (number, required): Target Y coordinate.</li>
+<li><code>z</code> (number, required): Target Z coordinate.</li>
+<li><code>sprint</code> (boolean, optional, default: true): Whether to sprint on flat ground.</li>
+<li><code>wait_completion</code> (boolean, optional, default: true): Blocks until the destination is reached.</li>
+<li><code>max_nodes</code> (integer, optional, default: 4000): Maximum search nodes to explore.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>success</code> (boolean): Whether route was found.</li>
+<li><code>path_blocks</code> (integer): Total route voxel length.</li>
+<li><code>actions_generated</code> (integer): Physical macro steps generated.</li>
+<li><code>reached_target</code> (boolean): Whether player arrived at target.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h2 id="macro-action-queue-tools">Macro &amp; Action Queue Tools</h2>
+<h3 id="execute_actions"><code>execute_actions</code></h3>
+<p>Schedules and executes a sequence of timed physical actions.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>actions</code> (array, required): Ordered list of action steps.</li>
+<li><code>wait_completion</code> (boolean, optional, default: true): Wait until execution finishes.</li>
+</ul>
+</li>
+<li><strong>Supported Step Types</strong>:<ul>
+<li><code>move</code>: <code>{ "forward": bool, "backward": bool, "left": bool, "right": bool, "sprint": bool, "sneak": bool, "ticks": int }</code></li>
+<li><code>jump</code>: Jump once.</li>
+<li><code>look</code>: <code>{ "yaw": float, "pitch": float }</code></li>
+<li><code>look_at</code>: <code>{ "x": float, "y": float, "z": float }</code></li>
+<li><code>interact</code>: <code>{ "x": int, "y": int, "z": int, "direction": string }</code></li>
+<li><code>select_slot</code>: <code>{ "slot": int }</code></li>
+<li><code>wait</code>: <code>{ "ticks": int }</code></li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>total_actions</code> (integer).</li>
+</ul>
+<hr />
+<h3 id="get_queue_status"><code>get_queue_status</code></h3>
+<p>Queries the status of the background action queue runner.</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>: <code>running</code> (boolean), <code>remaining_steps</code> (integer), <code>completed_steps</code> (integer), <code>current_step</code> (string).</li>
+</ul>
+<hr />
+<h3 id="cancel_actions"><code>cancel_actions</code></h3>
+<p>Emergency stop mechanism: flushes all queued macro steps and releases all virtual movement keys.</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean), <code>message</code> (string).</li>
+</ul>
+<hr />
+<h2 id="container-inventory-tools">Container &amp; Inventory Tools</h2>
+<h3 id="get_open_container"><code>get_open_container</code></h3>
+<p>Reads the state of the currently open GUI container menu.</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>:<ul>
+<li><code>containerId</code> (integer): Window ID (0 for inventory, &gt;0 for opened blocks).</li>
+<li><code>menuType</code> (string): Menu class (<code>CraftingMenu</code>, <code>ChestMenu</code>, <code>AnvilMenu</code>, <code>FurnaceMenu</code>, etc.).</li>
+<li><code>totalSlots</code> (integer): Number of slots in container.</li>
+<li><code>items</code> (array): List of items occupying slots.</li>
+</ul>
+</li>
+</ul>
+<hr />
+<h3 id="click_container_slot"><code>click_container_slot</code></h3>
+<p>Simulates mouse clicks inside container slots.</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>slot</code> (integer, required): Slot index to click.</li>
+<li><code>button</code> (integer, optional, default: 0): Mouse button (0 for left, 1 for right).</li>
+<li><code>mode</code> (string, optional, default: "pickup"): Click mode (<code>pickup</code>, <code>quick_move</code>, <code>swap</code>, <code>clone</code>, <code>throw</code>).</li>
+<li><code>container_id</code> (integer, optional): Container ID (defaults to active container).</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean).</li>
+</ul>
+<hr />
+<h3 id="click_container_button"><code>click_container_button</code></h3>
+<p>Clicks interactive menu buttons (such as the 3 enchantment options in an Enchanting Table).</p>
+<ul>
+<li><strong>Parameters</strong>:<ul>
+<li><code>button_id</code> (integer, required): Button index (0, 1, or 2).</li>
+<li><code>container_id</code> (integer, optional): Container ID.</li>
+</ul>
+</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean).</li>
+</ul>
+<hr />
+<h3 id="close_container"><code>close_container</code></h3>
+<p>Closes the currently active container menu and returns control to the world.</p>
+<ul>
+<li><strong>Parameters</strong>: None.</li>
+<li><strong>Returns</strong>: <code>success</code> (boolean).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>
