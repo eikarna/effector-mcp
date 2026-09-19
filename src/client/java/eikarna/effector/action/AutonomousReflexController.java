@@ -417,8 +417,7 @@ public class AutonomousReflexController implements IReflexController {
                     client.options.keyJump.setDown(false);
                 }
                 // Phase 2: Inspect obstacle in front of avatar
-                Vec3 look = player.getLookAngle();
-                net.minecraft.core.Direction nearestDir = net.minecraft.core.Direction.getNearest(look.x, 0, look.z);
+                net.minecraft.core.Direction nearestDir = player.getDirection();
                 net.minecraft.core.BlockPos frontPos = player.blockPosition().relative(nearestDir);
                 net.minecraft.world.level.block.state.BlockState frontState = client.level.getBlockState(frontPos);
 
