@@ -523,8 +523,7 @@ public class AutonomousReflexController implements IReflexController {
         JsonObject bStatus = baritoneController.getStatus();
         boolean isPathing = bStatus.has("is_pathing") && bStatus.get("is_pathing").getAsBoolean();
         boolean hasGoal = bStatus.has("has_goal") && bStatus.get("has_goal").getAsBoolean();
-        boolean builderActive = bStatus.has("builder_active") && bStatus.get("builder_active").getAsBoolean();
-        boolean isBusy = isPathing || hasGoal || builderActive;
+        boolean isBusy = isPathing || hasGoal;
 
         if (!isBusy) {
             stallTicks = 0;
