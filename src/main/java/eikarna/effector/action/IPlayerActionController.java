@@ -16,4 +16,5 @@ public interface IPlayerActionController {
     JsonObject selectSlot(JsonObject arguments);
     JsonObject swapHands();
     JsonObject loadWorld(JsonObject arguments);
+    JsonObject connectServer(JsonObject arguments);
 }

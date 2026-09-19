@@ -74,4 +74,9 @@ public class ServerPlayerActionController implements IPlayerActionController {
     public JsonObject loadWorld(JsonObject arguments) {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject connectServer(JsonObject arguments) {
+        return notAvailable();
+    }
 }

@@ -35,6 +35,14 @@ public class PlayerInfoProvider implements eikarna.effector.utils.IPlayerInfoPro
         
         if (player == null) {
             playerInfo.addProperty("error", "No player found");
+            if (client.gui != null && client.gui.screen() != null) {
+                playerInfo.addProperty("currentScreen", client.gui.screen().getClass().getName());
+                try {
+                    playerInfo.addProperty("screenTitle", client.gui.screen().getTitle().getString());
+                } catch (Throwable ignored) {}
+            } else {
+                playerInfo.addProperty("currentScreen", "null");
+            }
             return playerInfo;
         }
         

@@ -704,4 +704,40 @@ public class PlayerActionController implements IPlayerActionController {
         res.addProperty("message", "Triggered world load: " + worldName);
         return res;
     }
+
+    @Override
+    public JsonObject connectServer(JsonObject arguments) {
+        if (!arguments.has("address")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameter: 'address'");
+            return err;
+        }
+
+        String addressStr = arguments.get("address").getAsString();
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        client.execute(() -> {
+            try {
+                net.minecraft.client.multiplayer.resolver.ServerAddress address = 
+                    net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(addressStr);
+                net.minecraft.client.multiplayer.ServerData serverData = 
+                    new net.minecraft.client.multiplayer.ServerData(addressStr, addressStr, net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+                net.minecraft.client.gui.screens.ConnectScreen.startConnecting(
+                    client.gui != null ? client.gui.screen() : null, 
+                    client, 
+                    address, 
+                    serverData, 
+                    false, 
+                    null
+                );
+            } catch (Throwable t) {
+                LOGGER.error("Failed to connect to server '{}': {}", addressStr, t.getMessage());
+            }
+        });
+
+        JsonObject res = new JsonObject();
+        res.addProperty("success", true);
+        res.addProperty("message", "Triggered connection to server: " + addressStr);
+        return res;
+    }
 }

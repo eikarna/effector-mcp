@@ -578,6 +578,9 @@ public class HTTPMCPServer {
                 case "load_world" -> {
                     return wrapToolResult(playerActionController.loadWorld(arguments));
                 }
+                case "connect_server" -> {
+                    return wrapToolResult(playerActionController.connectServer(arguments));
+                }
                 case "get_orthographic_slice" -> {
                     return wrapToolResult(blockScanner.getOrthographicSlice(arguments));
                 }

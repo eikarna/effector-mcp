@@ -725,6 +725,24 @@ public class MCPProtocol {
         lwTool.add("inputSchema", lwSchema);
         tools.add(lwTool);
 
+        // connect_server
+        JsonObject csTool = new JsonObject();
+        csTool.addProperty("name", "connect_server");
+        csTool.addProperty("description", "Connects to a multiplayer server by address (e.g. 'mc2.faizharleyda.gay').");
+        JsonObject csSchema = new JsonObject();
+        csSchema.addProperty("type", "object");
+        JsonObject csProps = new JsonObject();
+        JsonObject sa = new JsonObject();
+        sa.addProperty("type", "string");
+        sa.addProperty("description", "Server address (host or host:port)");
+        csProps.add("address", sa);
+        JsonArray csReq = new JsonArray();
+        csReq.add("address");
+        csSchema.add("required", csReq);
+        csSchema.add("properties", csProps);
+        csTool.add("inputSchema", csSchema);
+        tools.add(csTool);
+
         // baritone_goto
         JsonObject bGotoTool = new JsonObject();
         bGotoTool.addProperty("name", "baritone_goto");
