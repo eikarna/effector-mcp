@@ -433,9 +433,6 @@ public class HTTPMCPServer {
                     return wrapToolResult(playerActionController.attackBlock(arguments));
                 }
                 case "mine_block" -> {
-                    if (baritoneController != null) {
-                        return wrapToolResult(baritoneController.clearArea(arguments));
-                    }
                     return wrapToolResult(playerActionController.mineBlock(arguments));
                 }
                 case "get_block_info" -> {

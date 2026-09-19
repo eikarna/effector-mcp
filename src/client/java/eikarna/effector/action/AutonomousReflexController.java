@@ -31,6 +31,7 @@ public class AutonomousReflexController implements IReflexController {
     private boolean autoEatEnabled = true;
     private boolean autoDefenseEnabled = true;
     private boolean autoLootEnabled = true;
+    private boolean speedrunnerBoostEnabled = true;
 
     // Eating state machine
     private boolean isEating = false;
@@ -80,6 +81,11 @@ public class AutonomousReflexController implements IReflexController {
         // 3. Auto-Loot Reflex (collect floating items nearby)
         if (autoLootEnabled && !isEating && creeperDodgeTicks == 0) {
             handleAutoLoot(client, player);
+        }
+
+        // 4. Speedrunner Boost Reflex (sprint-jump / bunny-hopping across open terrain)
+        if (speedrunnerBoostEnabled && !isEating && creeperDodgeTicks == 0) {
+            handleSprintJump(client, player);
         }
     }
 
@@ -312,6 +318,36 @@ public class AutonomousReflexController implements IReflexController {
         }
     }
 
+    private void handleSprintJump(Minecraft client, LocalPlayer player) {
+        if (client.options == null) return;
+
+        boolean isSprinting = player.isSprinting();
+        boolean isMoving = player.getDeltaMovement().horizontalDistanceSqr() > 0.02;
+        boolean onGround = player.onGround();
+        boolean inLiquid = player.isInWater() || player.isInLava();
+        boolean climbing = player.onClimbable();
+        boolean crouching = player.isCrouching();
+
+        if (isSprinting && isMoving && !inLiquid && !climbing && !crouching) {
+            // Check headroom: avoid jumping if ceiling is too low (prevent bonking head in 2-block tunnels)
+            net.minecraft.core.BlockPos headPos = player.blockPosition().above(2);
+            boolean headRoomClear = client.level != null && client.level.getBlockState(headPos).isAir();
+
+            if (headRoomClear) {
+                if (onGround) {
+                    client.options.keyJump.setDown(true);
+                } else {
+                    client.options.keyJump.setDown(false);
+                }
+                return;
+            }
+        }
+
+        if (client.options.keyJump.isDown()) {
+            client.options.keyJump.setDown(false);
+        }
+    }
+
     public void resetStates(Minecraft client) {
         isEating = false;
         eatingTicks = 0;
@@ -321,6 +357,7 @@ public class AutonomousReflexController implements IReflexController {
         if (client != null && client.options != null) {
             client.options.keyUse.setDown(false);
             client.options.keyDown.setDown(false);
+            client.options.keyJump.setDown(false);
         }
     }
 
@@ -329,6 +366,7 @@ public class AutonomousReflexController implements IReflexController {
             if (arguments.has("auto_eat")) autoEatEnabled = arguments.get("auto_eat").getAsBoolean();
             if (arguments.has("auto_defense")) autoDefenseEnabled = arguments.get("auto_defense").getAsBoolean();
             if (arguments.has("auto_loot")) autoLootEnabled = arguments.get("auto_loot").getAsBoolean();
+            if (arguments.has("speedrunner_boost")) speedrunnerBoostEnabled = arguments.get("speedrunner_boost").getAsBoolean();
         }
         return getStatus();
     }
@@ -338,6 +376,7 @@ public class AutonomousReflexController implements IReflexController {
         res.addProperty("auto_eat", autoEatEnabled);
         res.addProperty("auto_defense", autoDefenseEnabled);
         res.addProperty("auto_loot", autoLootEnabled);
+        res.addProperty("speedrunner_boost", speedrunnerBoostEnabled);
         res.addProperty("is_eating", isEating);
         return res;
     }

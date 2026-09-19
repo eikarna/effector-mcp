@@ -31,6 +31,11 @@ public class BaritoneController implements IBaritoneController {
                 setSetting(settings, "allowParkourAscend", true);
                 setSetting(settings, "allowDownward", true);
                 setSetting(settings, "buildIgnoreExisting", false);
+                setSetting(settings, "blockBreakAdditionalPenalty", 100.0);
+                setSetting(settings, "freeLook", false);
+                setSetting(settings, "remainWithExistingLookDirection", false);
+                setSetting(settings, "antiCheatCompatibility", true);
+                setSetting(settings, "smoothLook", true);
                 LOGGER.info("Successfully configured Baritone settings via reflection");
             }
         } catch (Throwable t) {

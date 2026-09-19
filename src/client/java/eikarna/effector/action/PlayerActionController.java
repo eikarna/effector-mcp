@@ -428,8 +428,11 @@ public class PlayerActionController implements IPlayerActionController {
 
     @Override
     public JsonObject mineBlock(JsonObject arguments) {
-        BaritoneController bc = new BaritoneController();
-        return bc.clearArea(arguments);
+        if (arguments.has("x2") || arguments.has("y2") || arguments.has("z2")) {
+            BaritoneController bc = new BaritoneController();
+            return bc.clearArea(arguments);
+        }
+        return attackBlock(arguments);
     }
 
     @Override
