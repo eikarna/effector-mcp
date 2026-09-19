@@ -3,6 +3,8 @@ package eikarna.effector.action;
 import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
@@ -16,6 +18,7 @@ import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -33,6 +36,7 @@ public class AutonomousReflexController implements IReflexController {
     private boolean autoLootEnabled = true;
     private boolean speedrunnerBoostEnabled = true;
     private boolean antiStuckEnabled = true;
+    private boolean autoReconnectEnabled = true;
 
     // Eating state machine
     private boolean isEating = false;
@@ -42,6 +46,18 @@ public class AutonomousReflexController implements IReflexController {
     // Combat & evasion state machine
     private int attackCooldownTicks = 0;
     private int creeperDodgeTicks = 0;
+
+    // Continuous Single-Block Mining State Machine
+    private BlockPos targetMiningPos = null;
+    private Direction targetMiningFace = Direction.UP;
+    private int miningTicks = 0;
+    private int maxMiningTicks = 120; // 6 seconds default max
+    private volatile boolean miningCompleted = false;
+    private volatile boolean miningFailed = false;
+    private String miningFailReason = null;
+
+    // Auto-Reconnect Watchdog State
+    private int reconnectCooldownTicks = 0;
 
     // Anti-stuck state machine
     private final BaritoneController baritoneController = new BaritoneController();
@@ -58,7 +74,13 @@ public class AutonomousReflexController implements IReflexController {
     }
 
     public void onClientTick(Minecraft client) {
-        if (client == null || client.player == null || client.level == null || client.gameMode == null) {
+        if (client == null) {
+            return;
+        }
+
+        handleAutoReconnect(client);
+
+        if (client.player == null || client.level == null || client.gameMode == null) {
             return;
         }
 
@@ -76,30 +98,164 @@ public class AutonomousReflexController implements IReflexController {
             }
         }
 
+        // 0. Continuous Single-Block Mining
+        handleContinuousMining(client, player);
+
         // 1. Auto-Eat Reflex (highest survival priority if starving/hungry)
         if (autoEatEnabled) {
             handleAutoEat(client, player);
         }
 
-        // 2. Auto-Defense Reflex (if not currently busy eating)
-        if (autoDefenseEnabled && !isEating) {
+        // 2. Auto-Defense Reflex (if not currently busy eating or mining)
+        if (autoDefenseEnabled && !isEating && targetMiningPos == null) {
             handleAutoDefense(client, player);
         }
 
         // 3. Auto-Loot Reflex (collect floating items nearby)
-        if (autoLootEnabled && !isEating && creeperDodgeTicks == 0) {
+        if (autoLootEnabled && !isEating && creeperDodgeTicks == 0 && targetMiningPos == null) {
             handleAutoLoot(client, player);
         }
 
         // 4. Speedrunner Boost Reflex (sprint-jump / bunny-hopping across open terrain)
-        if (speedrunnerBoostEnabled && !isEating && creeperDodgeTicks == 0) {
+        if (speedrunnerBoostEnabled && !isEating && creeperDodgeTicks == 0 && targetMiningPos == null) {
             handleSprintJump(client, player);
         }
 
         // 5. Autonomous Anti-Stuck Reflex (multi-stage non-destructive recovery)
-        if (antiStuckEnabled && !isEating && creeperDodgeTicks == 0) {
+        if (antiStuckEnabled && !isEating && creeperDodgeTicks == 0 && targetMiningPos == null) {
             handleAntiStuck(client, player);
         }
+    }
+
+    private void handleAutoReconnect(Minecraft client) {
+        if (!autoReconnectEnabled) return;
+
+        if (client.player == null && client.gui != null && client.gui.screen() instanceof net.minecraft.client.gui.screens.DisconnectedScreen) {
+            reconnectCooldownTicks++;
+            if (reconnectCooldownTicks >= 80) { // 4 seconds after disconnect
+                reconnectCooldownTicks = 0;
+                String lastServer = PlayerActionController.getLastConnectedAddress();
+                if (lastServer != null && !lastServer.isEmpty()) {
+                    LOGGER.info("AutoReconnectWatchdog: Reconnecting to '{}'...", lastServer);
+                    try {
+                        net.minecraft.client.multiplayer.resolver.ServerAddress address = 
+                            net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(lastServer);
+                        net.minecraft.client.multiplayer.ServerData serverData = 
+                            new net.minecraft.client.multiplayer.ServerData(lastServer, lastServer, net.minecraft.client.multiplayer.ServerData.Type.OTHER);
+                        net.minecraft.client.gui.screens.ConnectScreen.startConnecting(
+                            client.gui.screen(), 
+                            client, 
+                            address, 
+                            serverData, 
+                            false, 
+                            null
+                        );
+                    } catch (Throwable t) {
+                        LOGGER.error("AutoReconnectWatchdog failed: {}", t.getMessage());
+                    }
+                }
+            }
+        } else {
+            reconnectCooldownTicks = 0;
+        }
+    }
+
+    private void handleContinuousMining(Minecraft client, LocalPlayer player) {
+        if (targetMiningPos == null || client.level == null || client.gameMode == null) {
+            return;
+        }
+
+        BlockState state = client.level.getBlockState(targetMiningPos);
+        if (state.isAir()) {
+            miningCompleted = true;
+            client.gameMode.stopDestroyBlock();
+            targetMiningPos = null;
+            return;
+        }
+
+        if (miningTicks >= maxMiningTicks) {
+            miningFailed = true;
+            miningFailReason = "Mining timeout (" + miningTicks + " ticks)";
+            client.gameMode.stopDestroyBlock();
+            targetMiningPos = null;
+            return;
+        }
+
+        if (player.distanceToSqr(Vec3.atCenterOf(targetMiningPos)) > 36.0) { // > 6 blocks
+            miningFailed = true;
+            miningFailReason = "Target block out of reach";
+            client.gameMode.stopDestroyBlock();
+            targetMiningPos = null;
+            return;
+        }
+
+        // 1. Equip best tool from hotbar
+        int bestSlot = player.getInventory().getSelectedSlot();
+        float bestSpeed = player.getMainHandItem().getDestroySpeed(state);
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            float speed = stack.getDestroySpeed(state);
+            if (speed > bestSpeed) {
+                bestSpeed = speed;
+                bestSlot = i;
+            }
+        }
+        if (bestSlot != player.getInventory().getSelectedSlot()) {
+            player.getInventory().setSelectedSlot(bestSlot);
+            if (player.connection != null) {
+                player.connection.send(new ServerboundSetCarriedItemPacket(bestSlot));
+            }
+        }
+
+        // 2. Look at the block center
+        Vec3 blockCenter = Vec3.atCenterOf(targetMiningPos);
+        Vec3 eyePos = player.getEyePosition();
+        double dx = blockCenter.x - eyePos.x;
+        double dy = blockCenter.y - eyePos.y;
+        double dz = blockCenter.z - eyePos.z;
+        double distXZ = Math.sqrt(dx * dx + dz * dz);
+        float targetYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
+        float targetPitch = (float) -Math.toDegrees(Math.atan2(dy, distXZ));
+        player.setYRot(targetYaw);
+        player.setXRot(targetPitch);
+
+        // 3. Start or continue destroying
+        if (miningTicks == 0) {
+            client.gameMode.startDestroyBlock(targetMiningPos, targetMiningFace);
+        } else {
+            client.gameMode.continueDestroyBlock(targetMiningPos, targetMiningFace);
+        }
+        player.swing(InteractionHand.MAIN_HAND);
+        miningTicks++;
+    }
+
+    public boolean startMiningBlock(BlockPos pos, Direction face, int timeoutTicks) {
+        this.targetMiningPos = pos;
+        this.targetMiningFace = face != null ? face : Direction.UP;
+        this.miningTicks = 0;
+        this.maxMiningTicks = timeoutTicks > 0 ? timeoutTicks : 120;
+        this.miningCompleted = false;
+        this.miningFailed = false;
+        this.miningFailReason = null;
+        return true;
+    }
+
+    public boolean isMiningActive() {
+        return targetMiningPos != null && !miningCompleted && !miningFailed;
+    }
+
+    public boolean isMiningCompleted() {
+        return miningCompleted;
+    }
+
+    public String getMiningFailReason() {
+        return miningFailReason;
+    }
+
+    public void cancelMining() {
+        targetMiningPos = null;
+        miningCompleted = false;
+        miningFailed = false;
     }
 
     private void handleAutoEat(Minecraft client, LocalPlayer player) {

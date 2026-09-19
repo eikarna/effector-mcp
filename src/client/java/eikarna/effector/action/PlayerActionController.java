@@ -478,7 +478,82 @@ public class PlayerActionController implements IPlayerActionController {
             BaritoneController bc = new BaritoneController();
             return bc.clearArea(arguments);
         }
-        return attackBlock(arguments);
+
+        if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+            return err;
+        }
+
+        int x = arguments.get("x").getAsInt();
+        int y = arguments.get("y").getAsInt();
+        int z = arguments.get("z").getAsInt();
+        BlockPos targetPos = new BlockPos(x, y, z);
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Level is null");
+            return err;
+        }
+
+        BlockState state = client.level.getBlockState(targetPos);
+        if (isProtectedBlock(state)) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "PROTECTED_BLOCK");
+            err.addProperty("message", "Action refused: Target block is a protected base asset (" + BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath() + ")");
+            err.addProperty("targetX", x);
+            err.addProperty("targetY", y);
+            err.addProperty("targetZ", z);
+            return err;
+        }
+
+        if (state.getDestroySpeed(client.level, targetPos) < 0.0f) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "IMMUTABLE_BLOCK");
+            err.addProperty("message", "Target block is indestructible (hardness < 0)");
+            return err;
+        }
+
+        Direction face = Direction.UP;
+        if (arguments.has("direction")) {
+            Direction parsed = Direction.byName(arguments.get("direction").getAsString().toLowerCase(Locale.ROOT));
+            if (parsed != null) face = parsed;
+        }
+
+        AutonomousReflexController arc = AutonomousReflexController.getInstance();
+        arc.startMiningBlock(targetPos, face, 120);
+
+        long startTime = System.currentTimeMillis();
+        while (arc.isMiningActive() && (System.currentTimeMillis() - startTime < 5500)) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ignored) {}
+        }
+
+        JsonObject res = new JsonObject();
+        if (arc.isMiningCompleted() || (client.level != null && client.level.getBlockState(targetPos).isAir())) {
+            res.addProperty("success", true);
+            res.addProperty("status", "MINED");
+            res.addProperty("elapsedMs", System.currentTimeMillis() - startTime);
+            res.addProperty("targetX", x);
+            res.addProperty("targetY", y);
+            res.addProperty("targetZ", z);
+            arc.cancelMining();
+            return res;
+        } else {
+            res.addProperty("success", false);
+            res.addProperty("error", arc.getMiningFailReason() != null ? arc.getMiningFailReason() : "Mining in progress or timed out");
+            res.addProperty("targetX", x);
+            res.addProperty("targetY", y);
+            res.addProperty("targetZ", z);
+            arc.cancelMining();
+            return res;
+        }
     }
 
     @Override
@@ -705,6 +780,16 @@ public class PlayerActionController implements IPlayerActionController {
         return res;
     }
 
+    private static volatile String lastConnectedAddress = "mc2.faizharleyda.gay:25432";
+
+    public static String getLastConnectedAddress() {
+        return lastConnectedAddress;
+    }
+
+    public static void setLastConnectedAddress(String address) {
+        lastConnectedAddress = address;
+    }
+
     @Override
     public JsonObject connectServer(JsonObject arguments) {
         if (!arguments.has("address")) {
@@ -715,6 +800,7 @@ public class PlayerActionController implements IPlayerActionController {
         }
 
         String addressStr = arguments.get("address").getAsString();
+        setLastConnectedAddress(addressStr);
         net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
         client.execute(() -> {
             try {
