@@ -375,8 +375,7 @@ public class HTTPMCPServer {
     
     private JsonObject wrapToolResult(JsonObject result) {
         if (result.has("isError") && result.get("isError").getAsBoolean()) {
-            String errorMsg = result.has("error") ? result.get("error").getAsString() : "Tool execution failed";
-            return MCPProtocol.createErrorResponse(errorMsg, null);
+            return MCPProtocol.createErrorResponse(result.toString(), null);
         }
         return MCPProtocol.createSuccessResponse(result.toString());
     }
@@ -575,6 +574,9 @@ public class HTTPMCPServer {
                 }
                 case "audit_enclosure" -> {
                     return wrapToolResult(blockScanner.auditEnclosure(arguments));
+                }
+                case "load_world" -> {
+                    return wrapToolResult(playerActionController.loadWorld(arguments));
                 }
                 case "get_orthographic_slice" -> {
                     return wrapToolResult(blockScanner.getOrthographicSlice(arguments));

@@ -44,6 +44,7 @@ public class AutonomousReflexController implements IReflexController {
     private int creeperDodgeTicks = 0;
 
     // Anti-stuck state machine
+    private final BaritoneController baritoneController = new BaritoneController();
     private Vec3 lastStuckCheckPos = null;
     private int stallTicks = 0;
     private int recoveryStep = 0;
@@ -363,10 +364,13 @@ public class AutonomousReflexController implements IReflexController {
     private void handleAntiStuck(Minecraft client, LocalPlayer player) {
         if (!antiStuckEnabled || client.level == null) return;
 
-        BaritoneController bc = new BaritoneController();
-        JsonObject bStatus = bc.getStatus();
+        JsonObject bStatus = baritoneController.getStatus();
         boolean isPathing = bStatus.has("is_pathing") && bStatus.get("is_pathing").getAsBoolean();
-        if (!isPathing) {
+        boolean hasGoal = bStatus.has("has_goal") && bStatus.get("has_goal").getAsBoolean();
+        boolean builderActive = bStatus.has("builder_active") && bStatus.get("builder_active").getAsBoolean();
+        boolean isBusy = isPathing || hasGoal || builderActive;
+
+        if (!isBusy) {
             stallTicks = 0;
             recoveryStep = 0;
             lastStuckCheckPos = player.position();
@@ -424,7 +428,7 @@ public class AutonomousReflexController implements IReflexController {
                 if (PlayerActionController.isProtectedBlock(frontState)) {
                     LOGGER.warn("Unstuck: Front obstacle is protected container {}. Aborting path to prevent grief.", frontPos);
                     lastStallReason = "BLOCKED_BY_PROTECTED_CONTAINER";
-                    bc.stop();
+                    baritoneController.stop();
                     recoveryStep = 0;
                     stallTicks = 0;
                     return;
@@ -434,7 +438,7 @@ public class AutonomousReflexController implements IReflexController {
                 if (destroySpeed < 0.0f) {
                     LOGGER.warn("Unstuck: Front obstacle is immutable (barrier/bedrock) at {}. Aborting path.", frontPos);
                     lastStallReason = "IMMUTABLE_BARRIER";
-                    bc.stop();
+                    baritoneController.stop();
                     recoveryStep = 0;
                     stallTicks = 0;
                     return;
@@ -443,7 +447,7 @@ public class AutonomousReflexController implements IReflexController {
                 // Phase 3: Abort path gracefully if corner trapped
                 LOGGER.warn("Unstuck: corner trap detected at {}. Canceling Baritone path gracefully.", currentPos);
                 lastStallReason = "CORNER_TRAP";
-                bc.stop();
+                baritoneController.stop();
                 recoveryStep = 0;
                 stallTicks = 0;
             }

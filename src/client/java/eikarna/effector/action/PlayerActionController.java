@@ -679,4 +679,29 @@ public class PlayerActionController implements IPlayerActionController {
             return res;
         });
     }
+
+    @Override
+    public JsonObject loadWorld(JsonObject arguments) {
+        if (!arguments.has("world_name")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameter: 'world_name'");
+            return err;
+        }
+
+        String worldName = arguments.get("world_name").getAsString();
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        client.execute(() -> {
+            try {
+                client.createWorldOpenFlows().openWorld(worldName, () -> {});
+            } catch (Throwable t) {
+                LOGGER.error("Failed to open world '{}': {}", worldName, t.getMessage());
+            }
+        });
+
+        JsonObject res = new JsonObject();
+        res.addProperty("success", true);
+        res.addProperty("message", "Triggered world load: " + worldName);
+        return res;
+    }
 }

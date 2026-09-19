@@ -12,9 +12,17 @@ import java.util.List;
 
 public class BaritoneController implements IBaritoneController {
     private static final Logger LOGGER = LoggerFactory.getLogger(BaritoneController.class);
+    private static volatile boolean configured = false;
 
     public BaritoneController() {
-        tryConfigureSettings();
+        if (!configured) {
+            synchronized (BaritoneController.class) {
+                if (!configured) {
+                    tryConfigureSettings();
+                    configured = true;
+                }
+            }
+        }
     }
 
     private void tryConfigureSettings() {
@@ -189,7 +197,11 @@ public class BaritoneController implements IBaritoneController {
 
             JsonObject bStatus = getStatus();
             boolean isPathing = bStatus.has("is_pathing") && bStatus.get("is_pathing").getAsBoolean();
-            if (!isPathing && (System.currentTimeMillis() - startMs > 1500)) {
+            boolean hasPath = bStatus.has("has_path") && bStatus.get("has_path").getAsBoolean();
+            boolean isCalculating = bStatus.has("is_calculating") && bStatus.get("is_calculating").getAsBoolean();
+            boolean hasGoal = bStatus.has("has_goal") && bStatus.get("has_goal").getAsBoolean();
+
+            if (System.currentTimeMillis() - startMs > 2000 && !isPathing && !hasPath && !isCalculating && !hasGoal) {
                 break;
             }
         }
@@ -328,6 +340,10 @@ public class BaritoneController implements IBaritoneController {
             cmd = "build " + schemName;
         }
 
+        runBaritoneCommand("buildInLayers false");
+        runBaritoneCommand("skipFailedLayers true");
+        runBaritoneCommand("allowPlace true");
+        runBaritoneCommand("allowBreak true");
         boolean executed = runBaritoneCommand(cmd);
         JsonObject res = new JsonObject();
         res.addProperty("success", executed);
@@ -384,8 +400,24 @@ public class BaritoneController implements IBaritoneController {
             if (pb != null) {
                 Method isPathing = pb.getClass().getMethod("isPathing");
                 Method hasPath = pb.getClass().getMethod("hasPath");
+                Method getInProgress = pb.getClass().getMethod("getInProgress");
+                Method getGoal = pb.getClass().getMethod("getGoal");
+
                 status.addProperty("is_pathing", (Boolean) isPathing.invoke(pb));
                 status.addProperty("has_path", (Boolean) hasPath.invoke(pb));
+
+                java.util.Optional<?> inProgress = (java.util.Optional<?>) getInProgress.invoke(pb);
+                status.addProperty("is_calculating", inProgress != null && inProgress.isPresent());
+                status.addProperty("has_goal", getGoal.invoke(pb) != null);
+            }
+
+            Method getBuilder = baritone.getClass().getMethod("getBuilderProcess");
+            Object builder = getBuilder.invoke(baritone);
+            if (builder != null) {
+                Method isActive = builder.getClass().getMethod("isActive");
+                Method isPaused = builder.getClass().getMethod("isPaused");
+                status.addProperty("builder_active", (Boolean) isActive.invoke(builder));
+                status.addProperty("builder_paused", (Boolean) isPaused.invoke(builder));
             }
         } catch (Throwable t) {
             status.addProperty("is_pathing", false);

@@ -69,4 +69,9 @@ public class ServerPlayerActionController implements IPlayerActionController {
     public JsonObject swapHands() {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject loadWorld(JsonObject arguments) {
+        return notAvailable();
+    }
 }

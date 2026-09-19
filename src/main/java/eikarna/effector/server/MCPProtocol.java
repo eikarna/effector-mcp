@@ -707,22 +707,23 @@ public class MCPProtocol {
         gbiTool.add("inputSchema", gbiSchema);
         tools.add(gbiTool);
 
-        // navigate_to
-        JsonObject navTool = new JsonObject();
-        navTool.addProperty("name", "navigate_to");
-        navTool.addProperty("description", "High-signal autonomous navigation to (x, y, z). Includes active anti-stuck watchdog, AABB micro-escape recovery, and structured status diagnostics.");
-        JsonObject navSchema = new JsonObject();
-        navSchema.addProperty("type", "object");
-        JsonObject navProps = new JsonObject();
-        JsonObject nx = new JsonObject(); nx.addProperty("type", "integer"); nx.addProperty("description", "Target X"); navProps.add("x", nx);
-        JsonObject ny = new JsonObject(); ny.addProperty("type", "integer"); ny.addProperty("description", "Target Y"); navProps.add("y", ny);
-        JsonObject nz = new JsonObject(); nz.addProperty("type", "integer"); nz.addProperty("description", "Target Z"); navProps.add("z", nz);
-        JsonObject nTimeout = new JsonObject(); nTimeout.addProperty("type", "integer"); nTimeout.addProperty("description", "Timeout in seconds (default: 20)"); navProps.add("timeout_seconds", nTimeout);
-        JsonArray nReq = new JsonArray(); nReq.add("x"); nReq.add("y"); nReq.add("z");
-        navSchema.add("required", nReq);
-        navSchema.add("properties", navProps);
-        navTool.add("inputSchema", navSchema);
-        tools.add(navTool);
+        // load_world
+        JsonObject lwTool = new JsonObject();
+        lwTool.addProperty("name", "load_world");
+        lwTool.addProperty("description", "Loads a singleplayer world by folder name (e.g. 'EffectorMCPTest').");
+        JsonObject lwSchema = new JsonObject();
+        lwSchema.addProperty("type", "object");
+        JsonObject lwProps = new JsonObject();
+        JsonObject wn = new JsonObject();
+        wn.addProperty("type", "string");
+        wn.addProperty("description", "Singleplayer world folder name");
+        lwProps.add("world_name", wn);
+        JsonArray lwReq = new JsonArray();
+        lwReq.add("world_name");
+        lwSchema.add("required", lwReq);
+        lwSchema.add("properties", lwProps);
+        lwTool.add("inputSchema", lwSchema);
+        tools.add(lwTool);
 
         // baritone_goto
         JsonObject bGotoTool = new JsonObject();
