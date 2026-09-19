@@ -247,7 +247,14 @@ public class PlayerActionController implements IPlayerActionController {
             if (arguments.has("face") || arguments.has("direction")) {
                 String dName = arguments.has("face") ? arguments.get("face").getAsString() : arguments.get("direction").getAsString();
                 Direction parsed = Direction.byName(dName.toLowerCase(Locale.ROOT));
-                if (parsed != null) placeFace = parsed;
+                if (parsed != null) {
+                    placeFace = parsed;
+                    if (client.level.getBlockState(targetPos).isAir()) {
+                        supportPos = targetPos.relative(parsed.getOpposite());
+                    } else {
+                        supportPos = targetPos;
+                    }
+                }
             } else {
                 for (Direction d : Direction.values()) {
                     BlockPos neighbor = targetPos.relative(d);

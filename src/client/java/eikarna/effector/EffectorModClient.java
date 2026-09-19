@@ -27,6 +27,7 @@ public class EffectorModClient implements ClientModInitializer {
 			if (actionQueueControllerInstance != null) {
 				ClientTickEvents.END_CLIENT_TICK.register(actionQueueControllerInstance::onClientTick);
 			}
+			ClientTickEvents.END_CLIENT_TICK.register(eikarna.effector.action.AutonomousReflexController.getInstance()::onClientTick);
 			ClientTickEvents.END_CLIENT_TICK.register(EffectorModClient::processDamageAndDeath);
 		} catch (Throwable t) {
 			LOGGER.warn("Fabric tick events not registered: {}", t.getMessage());
@@ -62,6 +63,7 @@ public class EffectorModClient implements ClientModInitializer {
 						true
 					);
 					httpServer.setBaritoneController(new eikarna.effector.action.BaritoneController());
+					httpServer.setReflexController(eikarna.effector.action.AutonomousReflexController.getInstance());
 					httpServer.start();
 					LOGGER.info("HTTP MCP Server started with ActionQueue on port {}", httpServer.getPort());
 				} else {

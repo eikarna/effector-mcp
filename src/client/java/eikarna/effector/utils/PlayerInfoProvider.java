@@ -8,7 +8,16 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.level.Level;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import java.util.List;
 
 public class PlayerInfoProvider implements eikarna.effector.utils.IPlayerInfoProvider {
     
@@ -298,6 +307,60 @@ public class PlayerInfoProvider implements eikarna.effector.utils.IPlayerInfoPro
                 sb.append("\n");
             }
             playerInfo.addProperty("ascii_map", sb.toString());
+        }
+
+        // --- 5. Nearby Dropped Items (within 24 blocks) ---
+        if (world != null && player != null) {
+            AABB dropBox = new AABB(
+                player.getX() - 24, player.getY() - 16, player.getZ() - 24,
+                player.getX() + 24, player.getY() + 16, player.getZ() + 24
+            );
+            List<ItemEntity> items = world.getEntitiesOfClass(ItemEntity.class, dropBox);
+            JsonArray dropArray = new JsonArray();
+            for (ItemEntity ie : items) {
+                if (ie.isAlive() && dropArray.size() < 15) {
+                    JsonObject d = new JsonObject();
+                    d.addProperty("id", BuiltInRegistries.ITEM.getKey(ie.getItem().getItem()).toString());
+                    d.addProperty("name", ie.getItem().getHoverName().getString());
+                    d.addProperty("count", ie.getItem().getCount());
+                    d.addProperty("distance", Math.round(ie.distanceTo(player) * 10.0) / 10.0);
+                    JsonObject dpos = new JsonObject();
+                    dpos.addProperty("x", Math.round(ie.getX() * 10.0) / 10.0);
+                    dpos.addProperty("y", Math.round(ie.getY() * 10.0) / 10.0);
+                    dpos.addProperty("z", Math.round(ie.getZ() * 10.0) / 10.0);
+                    d.add("pos", dpos);
+                    dropArray.add(d);
+                }
+            }
+            playerInfo.add("nearby_drops", dropArray);
+
+            // --- 6. Nearby Threats & Players ---
+            List<LivingEntity> nearbyLiving = world.getEntitiesOfClass(LivingEntity.class, dropBox, e -> e != null && e.isAlive() && e != player);
+            JsonArray threatArray = new JsonArray();
+            JsonArray playerArray = new JsonArray();
+            for (LivingEntity le : nearbyLiving) {
+                if (le instanceof Player p) {
+                    JsonObject po = new JsonObject();
+                    po.addProperty("name", p.getName().getString());
+                    po.addProperty("distance", Math.round(p.distanceTo(player) * 10.0) / 10.0);
+                    po.addProperty("health", Math.round(p.getHealth() * 10.0) / 10.0f);
+                    playerArray.add(po);
+                } else if (le instanceof Mob m) {
+                    boolean targetingMe = m.getTarget() == player;
+                    boolean isHostile = m instanceof Enemy || targetingMe;
+                    if (isHostile || targetingMe) {
+                        JsonObject to = new JsonObject();
+                        to.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(m.getType()).toString());
+                        to.addProperty("name", m.getName().getString());
+                        to.addProperty("distance", Math.round(m.distanceTo(player) * 10.0) / 10.0);
+                        to.addProperty("targeting_you", targetingMe);
+                        to.addProperty("health", Math.round(m.getHealth() * 10.0) / 10.0f);
+                        threatArray.add(to);
+                    }
+                }
+            }
+            playerInfo.add("nearby_threats", threatArray);
+            playerInfo.add("nearby_players", playerArray);
         }
 
         return playerInfo;

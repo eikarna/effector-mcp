@@ -99,7 +99,7 @@ public class BaritoneController implements IBaritoneController {
         int z = arguments.get("z").getAsInt();
         int distance = arguments.has("distance") ? arguments.get("distance").getAsInt() : 0;
 
-        String cmd = (distance > 0) ? ("goto " + x + " " + y + " " + z + " " + distance) : ("goto " + x + " " + y + " " + z);
+        String cmd = "goto " + x + " " + y + " " + z;
         boolean executed = runBaritoneCommand(cmd);
 
         JsonObject res = new JsonObject();

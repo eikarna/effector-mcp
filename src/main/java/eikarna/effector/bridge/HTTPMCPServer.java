@@ -50,6 +50,7 @@ public class HTTPMCPServer {
     private final IActionQueueController actionQueueController;
     private final IEntityScanner entityScanner;
     private IBaritoneController baritoneController;
+    private eikarna.effector.action.IReflexController reflexController;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private HttpServer httpServer;
     private ExecutorService executor;
@@ -122,6 +123,10 @@ public class HTTPMCPServer {
 
     public void setBaritoneController(IBaritoneController baritoneController) {
         this.baritoneController = baritoneController;
+    }
+
+    public void setReflexController(eikarna.effector.action.IReflexController reflexController) {
+        this.reflexController = reflexController;
     }
     
     public void start() throws IOException {
@@ -489,6 +494,42 @@ public class HTTPMCPServer {
                         return err;
                     }
                     return wrapToolResult(baritoneController.getStatus());
+                }
+                case "follow_player" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    String pName = arguments.has("name") ? arguments.get("name").getAsString() : (arguments.has("player_name") ? arguments.get("player_name").getAsString() : "");
+                    if (pName.isEmpty()) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Missing parameter: 'name'");
+                        return err;
+                    }
+                    JsonObject cmd = new JsonObject();
+                    cmd.addProperty("command", "follow player " + pName);
+                    return wrapToolResult(baritoneController.executeCommand(cmd));
+                }
+                case "configure_reflexes" -> {
+                    if (reflexController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Reflex controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(reflexController.configure(arguments));
+                }
+                case "get_reflex_status" -> {
+                    if (reflexController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Reflex controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(reflexController.getStatus());
                 }
                 case "swap_hands" -> {
                     return wrapToolResult(playerActionController.swapHands());

@@ -839,6 +839,43 @@ public class MCPProtocol {
         radarTool.add("inputSchema", radarSchema);
         tools.add(radarTool);
 
+        // configure_reflexes
+        JsonObject confReflexTool = new JsonObject();
+        confReflexTool.addProperty("name", "configure_reflexes");
+        confReflexTool.addProperty("description", "Configures 20 TPS autonomous client reflexes: auto_eat (eats when hungry), auto_defense (conditional hostility, creeper dodge, weapon equip), auto_loot (gathers floating drops).");
+        JsonObject confReflexSchema = new JsonObject();
+        confReflexSchema.addProperty("type", "object");
+        JsonObject crProps = new JsonObject();
+        JsonObject crEat = new JsonObject(); crEat.addProperty("type", "boolean"); crEat.addProperty("description", "Enable/disable auto eating when hungry"); crProps.add("auto_eat", crEat);
+        JsonObject crDef = new JsonObject(); crDef.addProperty("type", "boolean"); crDef.addProperty("description", "Enable/disable auto defense with weapon and creeper dodge"); crProps.add("auto_defense", crDef);
+        JsonObject crLoot = new JsonObject(); crLoot.addProperty("type", "boolean"); crLoot.addProperty("description", "Enable/disable auto looting nearby floating items"); crProps.add("auto_loot", crLoot);
+        confReflexSchema.add("properties", crProps);
+        confReflexTool.add("inputSchema", confReflexSchema);
+        tools.add(confReflexTool);
+
+        // get_reflex_status
+        JsonObject refStatTool = new JsonObject();
+        refStatTool.addProperty("name", "get_reflex_status");
+        refStatTool.addProperty("description", "Returns the current status of autonomous 20 TPS reflexes (auto_eat, auto_defense, auto_loot, is_eating).");
+        JsonObject refStatSchema = new JsonObject();
+        refStatSchema.addProperty("type", "object");
+        refStatTool.add("inputSchema", refStatSchema);
+        tools.add(refStatTool);
+
+        // follow_player
+        JsonObject followTool = new JsonObject();
+        followTool.addProperty("name", "follow_player");
+        followTool.addProperty("description", "Instructs Baritone pathfinder to dynamically follow and walk alongside a player (e.g. 'Shaiqie') with real-time sprint/parkour navigation.");
+        JsonObject followSchema = new JsonObject();
+        followSchema.addProperty("type", "object");
+        JsonObject fProps = new JsonObject();
+        JsonObject fName = new JsonObject(); fName.addProperty("type", "string"); fName.addProperty("description", "Player name to follow (e.g. 'Shaiqie')"); fProps.add("name", fName);
+        JsonArray fReq = new JsonArray(); fReq.add("name");
+        followSchema.add("required", fReq);
+        followSchema.add("properties", fProps);
+        followTool.add("inputSchema", followSchema);
+        tools.add(followTool);
+
         return tools;
     }
     
