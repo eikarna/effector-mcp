@@ -26,12 +26,33 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class PlayerActionController implements IPlayerActionController {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerActionController.class);
+
+    private static final Set<String> PROTECTED_BLOCKS = Set.of(
+        "chest", "trapped_chest", "ender_chest", "barrel", "shulker_box",
+        "hopper", "furnace", "smoker", "blast_furnace", "brewing_stand",
+        "crafting_table", "anvil", "chipped_anvil", "damaged_anvil",
+        "enchanting_table", "dispenser", "dropper", "beacon", "respawn_anchor",
+        "bed", "white_bed", "orange_bed", "magenta_bed", "light_blue_bed",
+        "yellow_bed", "lime_bed", "pink_bed", "gray_bed", "light_gray_bed",
+        "cyan_bed", "purple_bed", "blue_bed", "brown_bed", "green_bed", "red_bed", "black_bed",
+        "oak_door", "iron_door", "spruce_door", "birch_door", "jungle_door", "acacia_door", "dark_oak_door", "mangrove_door", "cherry_door", "bamboo_door", "crimson_door", "warped_door",
+        "oak_trapdoor", "iron_trapdoor", "spruce_trapdoor", "birch_trapdoor", "jungle_trapdoor", "acacia_trapdoor", "dark_oak_trapdoor", "mangrove_trapdoor", "cherry_trapdoor", "bamboo_trapdoor", "crimson_trapdoor", "warped_trapdoor",
+        "ladder"
+    );
+
+    public static boolean isProtectedBlock(BlockState state) {
+        if (state == null || state.isAir()) return false;
+        String name = BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath();
+        return PROTECTED_BLOCKS.contains(name);
+    }
 
     private JsonObject runOnClientThread(ActionSupplier supplier) {
         Minecraft client = Minecraft.getInstance();
@@ -406,10 +427,35 @@ public class PlayerActionController implements IPlayerActionController {
             }
 
             BlockPos targetPos = new BlockPos(x, y, z);
-            if (client.gameMode == null) {
+            if (client.level == null || client.gameMode == null) {
                 JsonObject err = new JsonObject();
                 err.addProperty("isError", true);
-                err.addProperty("error", "GameMode is null");
+                err.addProperty("error", "GameMode or level is null");
+                return err;
+            }
+
+            BlockState state = client.level.getBlockState(targetPos);
+            if (isProtectedBlock(state)) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "PROTECTED_BLOCK");
+                err.addProperty("message", "Action refused: Target block is a protected base asset (" + BuiltInRegistries.BLOCK.getKey(state.getBlock()).getPath() + ")");
+                err.addProperty("targetX", x);
+                err.addProperty("targetY", y);
+                err.addProperty("targetZ", z);
+                return err;
+            }
+
+            float destroySpeed = state.getDestroySpeed(client.level, targetPos);
+            if (destroySpeed < 0.0f) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "IMMUTABLE_BLOCK");
+                err.addProperty("message", "Target block is indestructible (hardness < 0: barrier, bedrock, or portal)");
+                err.addProperty("blockType", BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
+                err.addProperty("targetX", x);
+                err.addProperty("targetY", y);
+                err.addProperty("targetZ", z);
                 return err;
             }
 

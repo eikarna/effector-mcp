@@ -707,6 +707,23 @@ public class MCPProtocol {
         gbiTool.add("inputSchema", gbiSchema);
         tools.add(gbiTool);
 
+        // navigate_to
+        JsonObject navTool = new JsonObject();
+        navTool.addProperty("name", "navigate_to");
+        navTool.addProperty("description", "High-signal autonomous navigation to (x, y, z). Includes active anti-stuck watchdog, AABB micro-escape recovery, and structured status diagnostics.");
+        JsonObject navSchema = new JsonObject();
+        navSchema.addProperty("type", "object");
+        JsonObject navProps = new JsonObject();
+        JsonObject nx = new JsonObject(); nx.addProperty("type", "integer"); nx.addProperty("description", "Target X"); navProps.add("x", nx);
+        JsonObject ny = new JsonObject(); ny.addProperty("type", "integer"); ny.addProperty("description", "Target Y"); navProps.add("y", ny);
+        JsonObject nz = new JsonObject(); nz.addProperty("type", "integer"); nz.addProperty("description", "Target Z"); navProps.add("z", nz);
+        JsonObject nTimeout = new JsonObject(); nTimeout.addProperty("type", "integer"); nTimeout.addProperty("description", "Timeout in seconds (default: 20)"); navProps.add("timeout_seconds", nTimeout);
+        JsonArray nReq = new JsonArray(); nReq.add("x"); nReq.add("y"); nReq.add("z");
+        navSchema.add("required", nReq);
+        navSchema.add("properties", navProps);
+        navTool.add("inputSchema", navSchema);
+        tools.add(navTool);
+
         // baritone_goto
         JsonObject bGotoTool = new JsonObject();
         bGotoTool.addProperty("name", "baritone_goto");

@@ -32,6 +32,7 @@ public class AutonomousReflexController implements IReflexController {
     private boolean autoDefenseEnabled = true;
     private boolean autoLootEnabled = true;
     private boolean speedrunnerBoostEnabled = true;
+    private boolean antiStuckEnabled = true;
 
     // Eating state machine
     private boolean isEating = false;
@@ -41,6 +42,12 @@ public class AutonomousReflexController implements IReflexController {
     // Combat & evasion state machine
     private int attackCooldownTicks = 0;
     private int creeperDodgeTicks = 0;
+
+    // Anti-stuck state machine
+    private Vec3 lastStuckCheckPos = null;
+    private int stallTicks = 0;
+    private int recoveryStep = 0;
+    private String lastStallReason = null;
 
     public static synchronized AutonomousReflexController getInstance() {
         if (instance == null) {
@@ -86,6 +93,11 @@ public class AutonomousReflexController implements IReflexController {
         // 4. Speedrunner Boost Reflex (sprint-jump / bunny-hopping across open terrain)
         if (speedrunnerBoostEnabled && !isEating && creeperDodgeTicks == 0) {
             handleSprintJump(client, player);
+        }
+
+        // 5. Autonomous Anti-Stuck Reflex (multi-stage non-destructive recovery)
+        if (antiStuckEnabled && !isEating && creeperDodgeTicks == 0) {
+            handleAntiStuck(client, player);
         }
     }
 
@@ -346,6 +358,122 @@ public class AutonomousReflexController implements IReflexController {
         if (client.options.keyJump.isDown()) {
             client.options.keyJump.setDown(false);
         }
+    }
+
+    private void handleAntiStuck(Minecraft client, LocalPlayer player) {
+        if (!antiStuckEnabled || client.level == null) return;
+
+        BaritoneController bc = new BaritoneController();
+        JsonObject bStatus = bc.getStatus();
+        boolean isPathing = bStatus.has("is_pathing") && bStatus.get("is_pathing").getAsBoolean();
+        if (!isPathing) {
+            stallTicks = 0;
+            recoveryStep = 0;
+            lastStuckCheckPos = player.position();
+            return;
+        }
+
+        Vec3 currentPos = player.position();
+        if (lastStuckCheckPos == null) {
+            lastStuckCheckPos = currentPos;
+            stallTicks = 0;
+            return;
+        }
+
+        double distSq = currentPos.distanceToSqr(lastStuckCheckPos);
+        if (distSq < 0.0025) { // Moved less than 0.05 blocks
+            stallTicks++;
+        } else {
+            stallTicks = 0;
+            recoveryStep = 0;
+            lastStuckCheckPos = currentPos;
+            return;
+        }
+
+        // Trigger unstuck FSM when stalled for 40 ticks (2 seconds)
+        if (stallTicks >= 40) {
+            LOGGER.warn("Avatar stall detected for {} ticks at pos: ({}, {}, {}). Executing Unstuck FSM step {}",
+                stallTicks, currentPos.x, currentPos.y, currentPos.z, recoveryStep);
+
+            if (recoveryStep == 0) {
+                // Phase 1: Micro-Escape Vector Nudge
+                Vec3 escapeVec = findEscapeVector(client, player);
+                if (escapeVec != null) {
+                    LOGGER.info("Unstuck: applying non-destructive micro-escape nudge vector {}", escapeVec);
+                    player.push(escapeVec.x, 0.1, escapeVec.z);
+                    if (client.options != null) {
+                        client.options.keyJump.setDown(true);
+                    }
+                    recoveryStep = 1;
+                    stallTicks = 20; // 1 second observation window
+                    return;
+                } else {
+                    recoveryStep = 1;
+                }
+            }
+
+            if (recoveryStep == 1) {
+                if (client.options != null) {
+                    client.options.keyJump.setDown(false);
+                }
+                // Phase 2: Inspect obstacle in front of avatar
+                Vec3 look = player.getLookAngle();
+                net.minecraft.core.Direction nearestDir = net.minecraft.core.Direction.getNearest(look.x, 0, look.z);
+                net.minecraft.core.BlockPos frontPos = player.blockPosition().relative(nearestDir);
+                net.minecraft.world.level.block.state.BlockState frontState = client.level.getBlockState(frontPos);
+
+                if (PlayerActionController.isProtectedBlock(frontState)) {
+                    LOGGER.warn("Unstuck: Front obstacle is protected container {}. Aborting path to prevent grief.", frontPos);
+                    lastStallReason = "BLOCKED_BY_PROTECTED_CONTAINER";
+                    bc.stop();
+                    recoveryStep = 0;
+                    stallTicks = 0;
+                    return;
+                }
+
+                float destroySpeed = frontState.getDestroySpeed(client.level, frontPos);
+                if (destroySpeed < 0.0f) {
+                    LOGGER.warn("Unstuck: Front obstacle is immutable (barrier/bedrock) at {}. Aborting path.", frontPos);
+                    lastStallReason = "IMMUTABLE_BARRIER";
+                    bc.stop();
+                    recoveryStep = 0;
+                    stallTicks = 0;
+                    return;
+                }
+
+                // Phase 3: Abort path gracefully if corner trapped
+                LOGGER.warn("Unstuck: corner trap detected at {}. Canceling Baritone path gracefully.", currentPos);
+                lastStallReason = "CORNER_TRAP";
+                bc.stop();
+                recoveryStep = 0;
+                stallTicks = 0;
+            }
+        }
+    }
+
+    public static Vec3 findEscapeVector(Minecraft client, LocalPlayer player) {
+        if (client.level == null) return null;
+        AABB playerBox = player.getBoundingBox();
+        double[][] directions = {
+            {0, -0.4}, {0, 0.4}, {0.4, 0}, {-0.4, 0},
+            {0.3, -0.3}, {-0.3, -0.3}, {0.3, 0.3}, {-0.3, 0.3}
+        };
+
+        for (double[] dir : directions) {
+            AABB testBox = playerBox.move(dir[0], 0.0, dir[1]);
+            if (client.level.noCollision(player, testBox)) {
+                return new Vec3(dir[0], 0.0, dir[1]);
+            }
+        }
+        return null;
+    }
+
+    public String getLastStallReason() {
+        return lastStallReason;
+    }
+
+    public void resetStallReason() {
+        lastStallReason = null;
     }
 
     public void resetStates(Minecraft client) {

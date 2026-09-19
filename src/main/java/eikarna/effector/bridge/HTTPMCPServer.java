@@ -438,6 +438,15 @@ public class HTTPMCPServer {
                 case "get_block_info" -> {
                     return wrapToolResult(blockScanner.getBlockInfo(arguments));
                 }
+                case "navigate_to" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.navigateTo(arguments));
+                }
                 case "baritone_goto" -> {
                     if (baritoneController == null) {
                         JsonObject err = new JsonObject();
