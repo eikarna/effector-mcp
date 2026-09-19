@@ -209,6 +209,47 @@ public class BaritoneController implements IBaritoneController {
     }
 
     @Override
+    public JsonObject buildSchematic(JsonObject arguments) {
+        Object baritone = getPrimaryBaritone();
+        if (baritone == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Baritone is not available");
+            return err;
+        }
+
+        if (!arguments.has("schematic")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameter: 'schematic'");
+            return err;
+        }
+
+        String schemName = arguments.get("schematic").getAsString();
+        String cmd;
+        if (arguments.has("x") && arguments.has("y") && arguments.has("z")) {
+            int x = arguments.get("x").getAsInt();
+            int y = arguments.get("y").getAsInt();
+            int z = arguments.get("z").getAsInt();
+            cmd = "build " + schemName + " " + x + " " + y + " " + z;
+        } else {
+            cmd = "build " + schemName;
+        }
+
+        boolean executed = runBaritoneCommand(cmd);
+        JsonObject res = new JsonObject();
+        res.addProperty("success", executed);
+        res.addProperty("command", cmd);
+        res.addProperty("schematic", schemName);
+        if (arguments.has("x") && arguments.has("y") && arguments.has("z")) {
+            res.addProperty("originX", arguments.get("x").getAsInt());
+            res.addProperty("originY", arguments.get("y").getAsInt());
+            res.addProperty("originZ", arguments.get("z").getAsInt());
+        }
+        return res;
+    }
+
+    @Override
     public JsonObject executeCommand(JsonObject arguments) {
         Object baritone = getPrimaryBaritone();
         if (baritone == null) {

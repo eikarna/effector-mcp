@@ -794,6 +794,23 @@ public class MCPProtocol {
         bStatTool.add("inputSchema", bStatSchema);
         tools.add(bStatTool);
 
+        // build_schematic
+        JsonObject bBuildTool = new JsonObject();
+        bBuildTool.addProperty("name", "build_schematic");
+        bBuildTool.addProperty("description", "Commands Baritone to load and construct a pre-designed Sponge (.schem) or Litematica (.litematic) modular schematic layer-by-layer at target coordinates.");
+        JsonObject bBuildSchema = new JsonObject();
+        bBuildSchema.addProperty("type", "object");
+        JsonObject bBuildProps = new JsonObject();
+        JsonObject bsName = new JsonObject(); bsName.addProperty("type", "string"); bsName.addProperty("description", "Schematic filename in schematics folder (e.g. 'module_corridor_industrial_5z.schem')"); bBuildProps.add("schematic", bsName);
+        JsonObject bsx = new JsonObject(); bsx.addProperty("type", "integer"); bsx.addProperty("description", "Target X origin (optional)"); bBuildProps.add("x", bsx);
+        JsonObject bsy = new JsonObject(); bsy.addProperty("type", "integer"); bsy.addProperty("description", "Target Y origin (optional)"); bBuildProps.add("y", bsy);
+        JsonObject bsz = new JsonObject(); bsz.addProperty("type", "integer"); bsz.addProperty("description", "Target Z origin (optional)"); bBuildProps.add("z", bsz);
+        JsonArray bsReq = new JsonArray(); bsReq.add("schematic");
+        bBuildSchema.add("required", bsReq);
+        bBuildSchema.add("properties", bBuildProps);
+        bBuildTool.add("inputSchema", bBuildSchema);
+        tools.add(bBuildTool);
+
         // audit_enclosure
         JsonObject auditTool = new JsonObject();
         auditTool.addProperty("name", "audit_enclosure");

@@ -492,6 +492,15 @@ public class HTTPMCPServer {
                     }
                     return wrapToolResult(baritoneController.getStatus());
                 }
+                case "build_schematic" -> {
+                    if (baritoneController == null) {
+                        JsonObject err = new JsonObject();
+                        err.addProperty("isError", true);
+                        err.addProperty("error", "Baritone controller not initialized");
+                        return err;
+                    }
+                    return wrapToolResult(baritoneController.buildSchematic(arguments));
+                }
                 case "follow_player" -> {
                     if (baritoneController == null) {
                         JsonObject err = new JsonObject();
