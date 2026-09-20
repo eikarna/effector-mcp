@@ -744,6 +744,68 @@ public class MCPProtocol {
         csTool.add("inputSchema", csSchema);
         tools.add(csTool);
 
+        // get_block
+        JsonObject gbTool = new JsonObject();
+        gbTool.addProperty("name", "get_block");
+        gbTool.addProperty("description", "Inspects a single block voxel returning blockType, isAir, isSolid, lightLevel, hardness, and blockstate properties.");
+        JsonObject gbSchema = new JsonObject();
+        gbSchema.addProperty("type", "object");
+        JsonObject gbProps = new JsonObject();
+        JsonObject gbx = new JsonObject(); gbx.addProperty("type", "integer"); gbx.addProperty("description", "Block X coordinate"); gbProps.add("x", gbx);
+        JsonObject gby = new JsonObject(); gby.addProperty("type", "integer"); gby.addProperty("description", "Block Y coordinate"); gbProps.add("y", gby);
+        JsonObject gbz = new JsonObject(); gbz.addProperty("type", "integer"); gbz.addProperty("description", "Block Z coordinate"); gbProps.add("z", gbz);
+        JsonArray gbReq = new JsonArray(); gbReq.add("x"); gbReq.add("y"); gbReq.add("z");
+        gbSchema.add("required", gbReq);
+        gbSchema.add("properties", gbProps);
+        gbTool.add("inputSchema", gbSchema);
+        tools.add(gbTool);
+
+        // equip_item
+        JsonObject eqTool = new JsonObject();
+        eqTool.addProperty("name", "equip_item");
+        eqTool.addProperty("description", "Atomically equips an item from backpack (or selects existing hotbar item) to a hotbar slot in 1 call.");
+        JsonObject eqSchema = new JsonObject();
+        eqSchema.addProperty("type", "object");
+        JsonObject eqProps = new JsonObject();
+        JsonObject eqItem = new JsonObject(); eqItem.addProperty("type", "string"); eqItem.addProperty("description", "Item name or ID substring (e.g. 'torch', 'pickaxe', 'cobblestone')"); eqProps.add("item", eqItem);
+        JsonObject eqSlot = new JsonObject(); eqSlot.addProperty("type", "integer"); eqSlot.addProperty("description", "Target hotbar slot (0-8, optional, defaults to active slot)"); eqProps.add("hotbar_slot", eqSlot);
+        JsonArray eqReq = new JsonArray(); eqReq.add("item");
+        eqSchema.add("required", eqReq);
+        eqSchema.add("properties", eqProps);
+        eqTool.add("inputSchema", eqSchema);
+        tools.add(eqTool);
+
+        // swap_inventory_slots
+        JsonObject swTool = new JsonObject();
+        swTool.addProperty("name", "swap_inventory_slots");
+        swTool.addProperty("description", "Swaps two slot indices in the player's 2x2/backpack inventory (0-45).");
+        JsonObject swSchema = new JsonObject();
+        swSchema.addProperty("type", "object");
+        JsonObject swProps = new JsonObject();
+        JsonObject swFrom = new JsonObject(); swFrom.addProperty("type", "integer"); swFrom.addProperty("description", "Source slot index"); swProps.add("from_slot", swFrom);
+        JsonObject swTo = new JsonObject(); swTo.addProperty("type", "integer"); swTo.addProperty("description", "Target slot index"); swProps.add("to_slot", swTo);
+        JsonArray swReq = new JsonArray(); swReq.add("from_slot"); swReq.add("to_slot");
+        swSchema.add("required", swReq);
+        swSchema.add("properties", swProps);
+        swTool.add("inputSchema", swSchema);
+        tools.add(swTool);
+
+        // seal_boundaries
+        JsonObject sbTool = new JsonObject();
+        sbTool.addProperty("name", "seal_boundaries");
+        sbTool.addProperty("description", "Scans the 6 outer bounding planes of a room volume, detects dark cave air breaches, and places sealing wall blocks.");
+        JsonObject sbSchema = new JsonObject();
+        sbSchema.addProperty("type", "object");
+        JsonObject sbProps = new JsonObject();
+        JsonObject sbFrom = new JsonObject(); sbFrom.addProperty("type", "object"); sbFrom.addProperty("description", "Starting corner {x, y, z}"); sbProps.add("from", sbFrom);
+        JsonObject sbTo = new JsonObject(); sbTo.addProperty("type", "object"); sbTo.addProperty("description", "Opposite corner {x, y, z}"); sbProps.add("to", sbTo);
+        JsonObject sbDry = new JsonObject(); sbDry.addProperty("type", "boolean"); sbDry.addProperty("description", "If true, only detects breaches without placing blocks"); sbProps.add("dry_run", sbDry);
+        JsonArray sbReq = new JsonArray(); sbReq.add("from"); sbReq.add("to");
+        sbSchema.add("required", sbReq);
+        sbSchema.add("properties", sbProps);
+        sbTool.add("inputSchema", sbSchema);
+        tools.add(sbTool);
+
         // baritone_goto
         JsonObject bGotoTool = new JsonObject();
         bGotoTool.addProperty("name", "baritone_goto");

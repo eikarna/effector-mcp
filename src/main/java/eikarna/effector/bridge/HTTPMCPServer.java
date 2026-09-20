@@ -434,8 +434,17 @@ public class HTTPMCPServer {
                 case "mine_block" -> {
                     return wrapToolResult(playerActionController.mineBlock(arguments));
                 }
-                case "get_block_info" -> {
-                    return wrapToolResult(blockScanner.getBlockInfo(arguments));
+                case "get_block", "get_block_info" -> {
+                    return wrapToolResult(blockScanner.getBlock(arguments));
+                }
+                case "equip_item" -> {
+                    return wrapToolResult(playerActionController.equipItem(arguments));
+                }
+                case "swap_inventory_slots" -> {
+                    return wrapToolResult(playerActionController.swapInventorySlots(arguments));
+                }
+                case "seal_boundaries" -> {
+                    return wrapToolResult(playerActionController.sealBoundaries(arguments));
                 }
                 case "baritone_goto" -> {
                     if (baritoneController == null) {

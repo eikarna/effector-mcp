@@ -79,4 +79,19 @@ public class ServerPlayerActionController implements IPlayerActionController {
     public JsonObject connectServer(JsonObject arguments) {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject equipItem(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject swapInventorySlots(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject sealBoundaries(JsonObject arguments) {
+        return notAvailable();
+    }
 }

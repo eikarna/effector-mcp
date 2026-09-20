@@ -108,6 +108,11 @@ public class ServerBlockScanner implements IBlockScanner {
     }
 
     @Override
+    public JsonObject getBlock(JsonObject arguments) {
+        return getBlockInfo(arguments);
+    }
+
+    @Override
     public JsonObject auditEnclosure(JsonObject arguments) {
         JsonObject res = new JsonObject();
         res.addProperty("isError", true);

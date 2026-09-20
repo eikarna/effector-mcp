@@ -14,6 +14,8 @@ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -914,6 +916,234 @@ public class PlayerActionController implements IPlayerActionController {
         JsonObject res = new JsonObject();
         res.addProperty("success", true);
         res.addProperty("message", "Triggered connection to server: " + addressStr);
+        return res;
+    }
+
+    @Override
+    public JsonObject equipItem(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            if (!arguments.has("item")) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Missing required parameter: 'item'");
+                return err;
+            }
+
+            String search = arguments.get("item").getAsString().toLowerCase(Locale.ROOT).trim();
+            int targetHotbar = arguments.has("hotbar_slot") ? arguments.get("hotbar_slot").getAsInt() : player.getInventory().getSelectedSlot();
+            if (targetHotbar < 0 || targetHotbar > 8) {
+                targetHotbar = player.getInventory().getSelectedSlot();
+            }
+
+            // Check if already in hotbar
+            for (int h = 0; h < 9; h++) {
+                ItemStack stack = player.getInventory().getItem(h);
+                if (!stack.isEmpty()) {
+                    String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().toLowerCase(Locale.ROOT);
+                    String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
+                    if (id.equals(search) || id.contains(search) || name.contains(search)) {
+                        player.getInventory().setSelectedSlot(h);
+                        if (player.connection != null) {
+                            player.connection.send(new ServerboundSetCarriedItemPacket(h));
+                        }
+                        JsonObject res = new JsonObject();
+                        res.addProperty("success", true);
+                        res.addProperty("action", "SELECTED_EXISTING_HOTBAR");
+                        res.addProperty("slot", h);
+                        res.addProperty("item", id);
+                        res.addProperty("count", stack.getCount());
+                        return res;
+                    }
+                }
+            }
+
+            // Search in main backpack (slots 9 to 35)
+            int foundSlot = -1;
+            ItemStack foundStack = ItemStack.EMPTY;
+            for (int i = 9; i < 36; i++) {
+                ItemStack stack = player.getInventory().getItem(i);
+                if (!stack.isEmpty()) {
+                    String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().toLowerCase(Locale.ROOT);
+                    String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
+                    if (id.equals(search) || id.contains(search) || name.contains(search)) {
+                        foundSlot = i;
+                        foundStack = stack;
+                        break;
+                    }
+                }
+            }
+
+            if (foundSlot == -1) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "ITEM_NOT_FOUND");
+                err.addProperty("message", "Item matching '" + search + "' not found in player inventory");
+                return err;
+            }
+
+            // In InventoryMenu (container 0), slot 9-35 are container slots 9-35
+            client.gameMode.handleContainerInput(0, foundSlot, targetHotbar, ContainerInput.SWAP, player);
+
+            player.getInventory().setSelectedSlot(targetHotbar);
+            if (player.connection != null) {
+                player.connection.send(new ServerboundSetCarriedItemPacket(targetHotbar));
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("action", "SWAPPED_FROM_BACKPACK");
+            res.addProperty("fromSlot", foundSlot);
+            res.addProperty("toHotbarSlot", targetHotbar);
+            res.addProperty("item", BuiltInRegistries.ITEM.getKey(foundStack.getItem()).toString());
+            res.addProperty("count", foundStack.getCount());
+            return res;
+        });
+    }
+
+    @Override
+    public JsonObject swapInventorySlots(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            if (!arguments.has("from_slot") || !arguments.has("to_slot")) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Missing required parameters: 'from_slot', 'to_slot'");
+                return err;
+            }
+
+            int fromSlot = arguments.get("from_slot").getAsInt();
+            int toSlot = arguments.get("to_slot").getAsInt();
+
+            if (fromSlot < 0 || fromSlot >= 46 || toSlot < 0 || toSlot >= 46) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Slot indices out of range [0, 45]");
+                return err;
+            }
+
+            client.gameMode.handleContainerInput(0, fromSlot, 0, ContainerInput.PICKUP, player);
+            client.gameMode.handleContainerInput(0, toSlot, 0, ContainerInput.PICKUP, player);
+            client.gameMode.handleContainerInput(0, fromSlot, 0, ContainerInput.PICKUP, player);
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("fromSlot", fromSlot);
+            res.addProperty("toSlot", toSlot);
+            return res;
+        });
+    }
+
+    @Override
+    public JsonObject sealBoundaries(JsonObject arguments) {
+        if (!arguments.has("from") || !arguments.has("to")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'from' and 'to' positions");
+            return err;
+        }
+
+        JsonObject f = arguments.getAsJsonObject("from");
+        JsonObject t = arguments.getAsJsonObject("to");
+        int minX = Math.min(f.get("x").getAsInt(), t.get("x").getAsInt());
+        int maxX = Math.max(f.get("x").getAsInt(), t.get("x").getAsInt());
+        int minY = Math.min(f.get("y").getAsInt(), t.get("y").getAsInt());
+        int maxY = Math.max(f.get("y").getAsInt(), t.get("y").getAsInt());
+        int minZ = Math.min(f.get("z").getAsInt(), t.get("z").getAsInt());
+        int maxZ = Math.max(f.get("z").getAsInt(), t.get("z").getAsInt());
+
+        boolean dryRun = arguments.has("dry_run") && arguments.get("dry_run").getAsBoolean();
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "World or player not available");
+            return err;
+        }
+
+        List<BlockPos> breaches = new ArrayList<>();
+        var level = client.level;
+
+        // Floor (minY - 1) and Ceiling (maxY + 1)
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                BlockPos floorPos = new BlockPos(x, minY - 1, z);
+                if (level.getBlockState(floorPos).isAir()) breaches.add(floorPos);
+
+                BlockPos ceilPos = new BlockPos(x, maxY + 1, z);
+                if (level.getBlockState(ceilPos).isAir()) breaches.add(ceilPos);
+            }
+        }
+
+        // North (minZ - 1) and South (maxZ + 1)
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                BlockPos northPos = new BlockPos(x, y, minZ - 1);
+                if (level.getBlockState(northPos).isAir()) breaches.add(northPos);
+
+                BlockPos southPos = new BlockPos(x, y, maxZ + 1);
+                if (level.getBlockState(southPos).isAir()) breaches.add(southPos);
+            }
+        }
+
+        // West (minX - 1) and East (maxX + 1)
+        for (int z = minZ; z <= maxZ; z++) {
+            for (int y = minY; y <= maxY; y++) {
+                BlockPos westPos = new BlockPos(minX - 1, y, z);
+                if (level.getBlockState(westPos).isAir()) breaches.add(westPos);
+
+                BlockPos eastPos = new BlockPos(maxX + 1, y, z);
+                if (level.getBlockState(eastPos).isAir()) breaches.add(eastPos);
+            }
+        }
+
+        JsonObject res = new JsonObject();
+        res.addProperty("success", true);
+        res.addProperty("breaches_detected", breaches.size());
+        res.addProperty("dry_run", dryRun);
+
+        JsonArray breachArray = new JsonArray();
+        for (BlockPos bp : breaches) {
+            JsonObject bObj = new JsonObject();
+            bObj.addProperty("x", bp.getX());
+            bObj.addProperty("y", bp.getY());
+            bObj.addProperty("z", bp.getZ());
+            breachArray.add(bObj);
+        }
+        res.add("breach_positions", breachArray);
+
+        if (dryRun || breaches.isEmpty()) {
+            return res;
+        }
+
+        // Place blocks to seal detected breaches
+        int placedCount = 0;
+        for (BlockPos bp : breaches) {
+            Direction targetFace = null;
+            BlockPos supportPos = null;
+            for (Direction d : Direction.values()) {
+                BlockPos neighbor = bp.relative(d);
+                if (level.getBlockState(neighbor).isSolid()) {
+                    supportPos = neighbor;
+                    targetFace = d.getOpposite();
+                    break;
+                }
+            }
+
+            if (supportPos != null && targetFace != null) {
+                JsonObject placeArgs = new JsonObject();
+                placeArgs.addProperty("x", bp.getX());
+                placeArgs.addProperty("y", bp.getY());
+                placeArgs.addProperty("z", bp.getZ());
+                placeArgs.addProperty("face", targetFace.getName());
+                JsonObject placeRes = placeBlock(placeArgs);
+                if (placeRes.has("success") && placeRes.get("success").getAsBoolean()) {
+                    placedCount++;
+                }
+            }
+        }
+
+        res.addProperty("blocks_placed", placedCount);
+        res.addProperty("sealed", placedCount == breaches.size());
         return res;
     }
 }

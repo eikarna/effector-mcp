@@ -15,6 +15,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import java.util.List;
@@ -154,6 +155,16 @@ public class PlayerInfoProvider implements eikarna.effector.utils.IPlayerInfoPro
             hotbarArray.add(ItemSerializer.serializeItemStack(player.getInventory().getItem(i), i));
         }
         inventory.add("hotbar", hotbarArray);
+
+        // Main Backpack (Slots 9 to 35)
+        JsonArray mainInvArray = new JsonArray();
+        for (int i = 9; i < 36; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                mainInvArray.add(ItemSerializer.serializeItemStack(stack, i));
+            }
+        }
+        inventory.add("main", mainInvArray);
 
         // Armor Equipment
         JsonObject armorObj = new JsonObject();

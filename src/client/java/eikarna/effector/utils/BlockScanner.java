@@ -29,6 +29,11 @@ public class BlockScanner implements eikarna.effector.utils.IBlockScanner {
     }
 
     @Override
+    public JsonObject getBlock(JsonObject arguments) {
+        return getBlockInfoStatic(arguments);
+    }
+
+    @Override
     public JsonObject auditEnclosure(JsonObject arguments) {
         return auditEnclosureStatic(arguments);
     }
@@ -69,6 +74,8 @@ public class BlockScanner implements eikarna.effector.utils.IBlockScanner {
             result.addProperty("blockType", blockId);
             result.addProperty("isAir", blockState.isAir());
             result.addProperty("isSolid", blockState.isSolid());
+            result.addProperty("lightLevel", client.level.getMaxLocalRawBrightness(pos));
+            result.addProperty("hardness", blockState.getDestroySpeed(client.level, pos));
 
             JsonObject props = new JsonObject();
             for (var prop : blockState.getProperties()) {
