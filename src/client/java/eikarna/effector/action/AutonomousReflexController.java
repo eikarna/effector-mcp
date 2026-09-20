@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
@@ -207,17 +208,51 @@ public class AutonomousReflexController implements IReflexController {
             }
         }
 
-        // 2. Look at the block center
-        Vec3 blockCenter = Vec3.atCenterOf(targetMiningPos);
+        // 2. Look at the block surface with human micro-jitter
+        Direction face = targetMiningFace != null ? targetMiningFace : Direction.UP;
+        double cx = targetMiningPos.getX() + 0.5 + face.getStepX() * 0.5;
+        double cy = targetMiningPos.getY() + 0.5 + face.getStepY() * 0.5;
+        double cz = targetMiningPos.getZ() + 0.5 + face.getStepZ() * 0.5;
+
+        double jitter1 = java.util.concurrent.ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
+        double jitter2 = java.util.concurrent.ThreadLocalRandom.current().nextDouble(-0.18, 0.18);
+        double hx = cx, hy = cy, hz = cz;
+        if (face.getAxis() == Direction.Axis.Y) {
+            hx += jitter1;
+            hz += jitter2;
+        } else if (face.getAxis() == Direction.Axis.X) {
+            hy += jitter1;
+            hz += jitter2;
+        } else {
+            hx += jitter1;
+            hy += jitter2;
+        }
+
         Vec3 eyePos = player.getEyePosition();
-        double dx = blockCenter.x - eyePos.x;
-        double dy = blockCenter.y - eyePos.y;
-        double dz = blockCenter.z - eyePos.z;
+        double dx = hx - eyePos.x;
+        double dy = hy - eyePos.y;
+        double dz = hz - eyePos.z;
         double distXZ = Math.sqrt(dx * dx + dz * dz);
         float targetYaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
         float targetPitch = (float) -Math.toDegrees(Math.atan2(dy, distXZ));
+
+        targetYaw = targetYaw % 360.0f;
+        if (targetYaw > 180.0f) targetYaw -= 360.0f;
+        if (targetYaw < -180.0f) targetYaw += 360.0f;
+        targetPitch = Math.max(-90.0f, Math.min(90.0f, targetPitch));
+
         player.setYRot(targetYaw);
         player.setXRot(targetPitch);
+        player.yRotO = targetYaw;
+        player.xRotO = targetPitch;
+        player.yHeadRot = targetYaw;
+        player.yHeadRotO = targetYaw;
+        player.yBodyRot = targetYaw;
+        player.yBodyRotO = targetYaw;
+
+        if (player.connection != null && miningTicks % 2 == 0) {
+            player.connection.send(new ServerboundMovePlayerPacket.Rot(targetYaw, targetPitch, player.onGround(), player.horizontalCollision));
+        }
 
         // 3. Start or continue destroying
         if (miningTicks == 0) {

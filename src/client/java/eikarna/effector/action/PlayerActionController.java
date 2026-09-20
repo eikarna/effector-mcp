@@ -34,6 +34,60 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class PlayerActionController implements IPlayerActionController {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerActionController.class);
+    private static volatile long lastPlaceTimestamp = 0;
+
+    private Vec3 calculateJitteredHitVec(BlockPos pos, Direction face) {
+        double cx = pos.getX() + 0.5 + face.getStepX() * 0.5;
+        double cy = pos.getY() + 0.5 + face.getStepY() * 0.5;
+        double cz = pos.getZ() + 0.5 + face.getStepZ() * 0.5;
+
+        double jitter1 = java.util.concurrent.ThreadLocalRandom.current().nextDouble(-0.20, 0.20);
+        double jitter2 = java.util.concurrent.ThreadLocalRandom.current().nextDouble(-0.20, 0.20);
+        double hx = cx, hy = cy, hz = cz;
+        if (face.getAxis() == Direction.Axis.Y) {
+            hx += jitter1;
+            hz += jitter2;
+        } else if (face.getAxis() == Direction.Axis.X) {
+            hy += jitter1;
+            hz += jitter2;
+        } else {
+            hx += jitter1;
+            hy += jitter2;
+        }
+        return new Vec3(hx, hy, hz);
+    }
+
+    private void lookAtVec(LocalPlayer player, Vec3 target) {
+        double eyeX = player.getX();
+        double eyeY = player.getEyeY();
+        double eyeZ = player.getZ();
+
+        double dx = target.x - eyeX;
+        double dy = target.y - eyeY;
+        double dz = target.z - eyeZ;
+
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0f;
+        float pitch = (float) -(Math.atan2(dy, horizontalDist) * 180.0 / Math.PI);
+
+        yaw = yaw % 360.0f;
+        if (yaw > 180.0f) yaw -= 360.0f;
+        if (yaw < -180.0f) yaw += 360.0f;
+        pitch = Math.max(-90.0f, Math.min(90.0f, pitch));
+
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.yRotO = yaw;
+        player.xRotO = pitch;
+        player.yHeadRot = yaw;
+        player.yHeadRotO = yaw;
+        player.yBodyRot = yaw;
+        player.yBodyRotO = yaw;
+
+        if (player.connection != null) {
+            player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+        }
+    }
 
     private static final Set<String> PROTECTED_BLOCKS = Set.of(
         "chest", "trapped_chest", "ender_chest", "barrel", "shulker_box",
@@ -217,7 +271,8 @@ public class PlayerActionController implements IPlayerActionController {
             }
 
             BlockPos targetPos = new BlockPos(x, y, z);
-            Vec3 hitVec = Vec3.atCenterOf(targetPos);
+            Vec3 hitVec = calculateJitteredHitVec(targetPos, face);
+            lookAtVec(player, hitVec);
             BlockHitResult hitResult = new BlockHitResult(hitVec, face, targetPos, false);
 
             if (client.gameMode == null) {
@@ -243,6 +298,15 @@ public class PlayerActionController implements IPlayerActionController {
 
     @Override
     public JsonObject placeBlock(JsonObject arguments) {
+        long now = System.currentTimeMillis();
+        long elapsed = now - lastPlaceTimestamp;
+        if (elapsed < 50) {
+            try {
+                Thread.sleep(java.util.concurrent.ThreadLocalRandom.current().nextLong(35, 65));
+            } catch (InterruptedException ignored) {}
+        }
+        lastPlaceTimestamp = System.currentTimeMillis();
+
         return runOnClientThread((client, player) -> {
             if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
                 JsonObject err = new JsonObject();
@@ -301,11 +365,8 @@ public class PlayerActionController implements IPlayerActionController {
                 }
             }
 
-            Vec3 hitVec = Vec3.atCenterOf(supportPos).add(
-                placeFace.getStepX() * 0.5,
-                placeFace.getStepY() * 0.5,
-                placeFace.getStepZ() * 0.5
-            );
+            Vec3 hitVec = calculateJitteredHitVec(supportPos, placeFace);
+            lookAtVec(player, hitVec);
             BlockHitResult hitResult = new BlockHitResult(hitVec, placeFace, supportPos, false);
 
             InteractionResult result = client.gameMode.useItemOn(player, hand, hitResult);
