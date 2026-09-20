@@ -446,6 +446,15 @@ public class HTTPMCPServer {
                 case "seal_boundaries" -> {
                     return wrapToolResult(playerActionController.sealBoundaries(arguments));
                 }
+                case "eat_food" -> {
+                    return wrapToolResult(playerActionController.eatFood(arguments));
+                }
+                case "build_structure" -> {
+                    return wrapToolResult(playerActionController.buildStructure(arguments));
+                }
+                case "craft_item" -> {
+                    return wrapToolResult(playerActionController.craftItem(arguments));
+                }
                 case "baritone_goto" -> {
                     if (baritoneController == null) {
                         JsonObject err = new JsonObject();
@@ -565,6 +574,12 @@ public class HTTPMCPServer {
                 }
                 case "close_container" -> {
                     return wrapToolResult(containerController.closeContainer());
+                }
+                case "deposit_container" -> {
+                    return wrapToolResult(containerController.depositContainer(arguments));
+                }
+                case "withdraw_container" -> {
+                    return wrapToolResult(containerController.withdrawContainer(arguments));
                 }
                 case "scan_entities" -> {
                     return wrapToolResult(entityScanner.scanEntities(arguments));

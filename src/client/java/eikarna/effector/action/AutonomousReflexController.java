@@ -18,6 +18,7 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.EnderMan;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -27,6 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 public class AutonomousReflexController implements IReflexController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutonomousReflexController.class);
@@ -43,6 +46,9 @@ public class AutonomousReflexController implements IReflexController {
     private boolean isEating = false;
     private int eatingTicks = 0;
     private int originalSlotBeforeEat = -1;
+    private CompletableFuture<JsonObject> eatCompletionFuture = null;
+    private int startFoodLevel = 0;
+    private String eatingItemName = "food";
 
     // Combat & evasion state machine
     private int attackCooldownTicks = 0;
@@ -316,16 +322,32 @@ public class AutonomousReflexController implements IReflexController {
                     setPlayerSelectedSlot(player, originalSlotBeforeEat);
                 }
                 originalSlotBeforeEat = -1;
+
+                if (eatCompletionFuture != null && !eatCompletionFuture.isDone()) {
+                    JsonObject res = new JsonObject();
+                    res.addProperty("success", true);
+                    res.addProperty("food", eatingItemName);
+                    res.addProperty("initial_food", startFoodLevel);
+                    res.addProperty("final_food", foodLevel);
+                    eatCompletionFuture.complete(res);
+                    eatCompletionFuture = null;
+                }
             }
             return;
         }
 
         // Trigger eat if hungry
         if (foodLevel <= 15 || (player.getHealth() < 18.0f && foodLevel < 20)) {
-            int bestFoodSlot = findBestFoodSlot(player);
+            int bestFoodSlot = findFoodSlot(player, null);
             if (bestFoodSlot != -1) {
+                if (bestFoodSlot >= 9) {
+                    int currentHotbar = player.getInventory().getSelectedSlot();
+                    client.gameMode.handleContainerInput(0, bestFoodSlot, currentHotbar, ContainerInput.SWAP, player);
+                    bestFoodSlot = currentHotbar;
+                }
                 originalSlotBeforeEat = player.getInventory().getSelectedSlot();
                 setPlayerSelectedSlot(player, bestFoodSlot);
+                this.eatingItemName = player.getMainHandItem().getHoverName().getString();
                 client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
                 if (client.options != null) {
                     client.options.keyUse.setDown(true);
@@ -336,22 +358,68 @@ public class AutonomousReflexController implements IReflexController {
         }
     }
 
-    private boolean isHoldingFood(LocalPlayer player) {
-        ItemStack held = player.getMainHandItem();
-        return !held.isEmpty() && held.get(DataComponents.FOOD) != null;
+    public boolean triggerEat(Minecraft client, LocalPlayer player, String foodSearch, CompletableFuture<JsonObject> future) {
+        int bestSlot = findFoodSlot(player, foodSearch);
+        if (bestSlot == -1) {
+            return false;
+        }
+
+        this.eatCompletionFuture = future;
+        this.startFoodLevel = player.getFoodData().getFoodLevel();
+
+        int hotbarSlot = player.getInventory().getSelectedSlot();
+        if (bestSlot >= 9) {
+            client.gameMode.handleContainerInput(0, bestSlot, hotbarSlot, ContainerInput.SWAP, player);
+            bestSlot = hotbarSlot;
+        }
+
+        originalSlotBeforeEat = player.getInventory().getSelectedSlot();
+        setPlayerSelectedSlot(player, bestSlot);
+        this.eatingItemName = player.getMainHandItem().getHoverName().getString();
+
+        client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+        if (client.options != null) {
+            client.options.keyUse.setDown(true);
+        }
+        isEating = true;
+        eatingTicks = 0;
+        return true;
     }
 
-    private int findBestFoodSlot(LocalPlayer player) {
+    private boolean isHoldingFood(LocalPlayer player) {
+        ItemStack held = player.getMainHandItem();
+        return !held.isEmpty() && (held.get(DataComponents.FOOD) != null || 
+               BuiltInRegistries.ITEM.getKey(held.getItem()).toString().contains("mutton") ||
+               BuiltInRegistries.ITEM.getKey(held.getItem()).toString().contains("apple") ||
+               BuiltInRegistries.ITEM.getKey(held.getItem()).toString().contains("bread"));
+    }
+
+    private int findFoodSlot(LocalPlayer player, String foodSearch) {
         int bestSlot = -1;
         int maxNutrition = -1;
-        for (int i = 0; i < 9; i++) {
+        String query = foodSearch != null ? foodSearch.toLowerCase(Locale.ROOT).trim() : "";
+
+        for (int i = 0; i < 36; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && stack.get(DataComponents.FOOD) != null) {
-                var foodComp = stack.get(DataComponents.FOOD);
-                int nutrition = foodComp != null ? foodComp.nutrition() : 1;
-                if (nutrition > maxNutrition) {
-                    maxNutrition = nutrition;
-                    bestSlot = i;
+            if (!stack.isEmpty()) {
+                String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().toLowerCase(Locale.ROOT);
+                String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
+
+                boolean isFood = stack.get(DataComponents.FOOD) != null ||
+                                 id.contains("apple") || id.contains("bread") || id.contains("mutton") ||
+                                 id.contains("beef") || id.contains("porkchop") || id.contains("carrot") ||
+                                 id.contains("potato") || id.contains("salmon") || id.contains("cod");
+
+                if (isFood) {
+                    if (!query.isEmpty() && !id.contains(query) && !name.contains(query)) {
+                        continue;
+                    }
+                    var foodComp = stack.get(DataComponents.FOOD);
+                    int nutrition = foodComp != null ? foodComp.nutrition() : 2;
+                    if (nutrition > maxNutrition) {
+                        maxNutrition = nutrition;
+                        bestSlot = i;
+                    }
                 }
             }
         }

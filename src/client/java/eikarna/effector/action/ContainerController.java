@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import eikarna.effector.utils.ItemSerializer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.*;
 import net.minecraft.world.item.ItemStack;
 import org.slf4j.Logger;
@@ -229,6 +230,84 @@ public class ContainerController implements IContainerController {
             JsonObject res = new JsonObject();
             res.addProperty("success", true);
             res.addProperty("message", "Container closed");
+            return res;
+        });
+    }
+
+    @Override
+    public JsonObject depositContainer(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            AbstractContainerMenu menu = player.containerMenu;
+            if (menu == null || menu == player.inventoryMenu) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "No external container menu open");
+                return err;
+            }
+
+            String targetItem = arguments != null && arguments.has("item") ? arguments.get("item").getAsString().toLowerCase(Locale.ROOT) : "all";
+            int movedCount = 0;
+
+            int totalSlots = menu.slots.size();
+            int playerStartSlot = Math.max(0, totalSlots - 36);
+
+            for (int i = playerStartSlot; i < totalSlots; i++) {
+                Slot slot = menu.slots.get(i);
+                ItemStack stack = slot.getItem();
+                if (!stack.isEmpty()) {
+                    String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().toLowerCase(Locale.ROOT);
+                    String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
+                    if (targetItem.equals("all") || id.contains(targetItem) || name.contains(targetItem)) {
+                        int count = stack.getCount();
+                        client.gameMode.handleContainerInput(menu.containerId, i, 0, ContainerInput.QUICK_MOVE, player);
+                        movedCount += count;
+                    }
+                }
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("items_deposited", movedCount);
+            res.addProperty("target_item", targetItem);
+            return res;
+        });
+    }
+
+    @Override
+    public JsonObject withdrawContainer(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            AbstractContainerMenu menu = player.containerMenu;
+            if (menu == null || menu == player.inventoryMenu) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "No external container menu open");
+                return err;
+            }
+
+            String targetItem = arguments != null && arguments.has("item") ? arguments.get("item").getAsString().toLowerCase(Locale.ROOT) : "all";
+            int movedCount = 0;
+
+            int totalSlots = menu.slots.size();
+            int playerStartSlot = Math.max(0, totalSlots - 36);
+
+            for (int i = 0; i < playerStartSlot; i++) {
+                Slot slot = menu.slots.get(i);
+                ItemStack stack = slot.getItem();
+                if (!stack.isEmpty()) {
+                    String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().toLowerCase(Locale.ROOT);
+                    String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
+                    if (targetItem.equals("all") || id.contains(targetItem) || name.contains(targetItem)) {
+                        int count = stack.getCount();
+                        client.gameMode.handleContainerInput(menu.containerId, i, 0, ContainerInput.QUICK_MOVE, player);
+                        movedCount += count;
+                    }
+                }
+            }
+
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("items_withdrawn", movedCount);
+            res.addProperty("target_item", targetItem);
             return res;
         });
     }

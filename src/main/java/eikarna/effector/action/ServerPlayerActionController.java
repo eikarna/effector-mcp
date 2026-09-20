@@ -94,4 +94,19 @@ public class ServerPlayerActionController implements IPlayerActionController {
     public JsonObject sealBoundaries(JsonObject arguments) {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject eatFood(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject buildStructure(JsonObject arguments) {
+        return notAvailable();
+    }
+
+    @Override
+    public JsonObject craftItem(JsonObject arguments) {
+        return notAvailable();
+    }
 }

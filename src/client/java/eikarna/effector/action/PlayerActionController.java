@@ -14,7 +14,9 @@ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Input;
@@ -1145,5 +1147,284 @@ public class PlayerActionController implements IPlayerActionController {
         res.addProperty("blocks_placed", placedCount);
         res.addProperty("sealed", placedCount == breaches.size());
         return res;
+    }
+
+    @Override
+    public JsonObject eatFood(JsonObject arguments) {
+        String foodSearch = arguments != null && arguments.has("food") ? arguments.get("food").getAsString() : null;
+        boolean waitCompletion = arguments == null || !arguments.has("wait_completion") || arguments.get("wait_completion").getAsBoolean();
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Player not available");
+            return err;
+        }
+
+        CompletableFuture<JsonObject> future = new CompletableFuture<>();
+        client.execute(() -> {
+            boolean triggered = AutonomousReflexController.getInstance().triggerEat(client, client.player, foodSearch, future);
+            if (!triggered) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "NO_FOOD_FOUND");
+                err.addProperty("message", "No edible food found in inventory" + (foodSearch != null ? " matching '" + foodSearch + "'" : ""));
+                future.complete(err);
+            }
+        });
+
+        if (!waitCompletion) {
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("action", "EATING_STARTED");
+            return res;
+        }
+
+        try {
+            return future.get(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Eating action timed out: " + e.getMessage());
+            return err;
+        }
+    }
+
+    @Override
+    public JsonObject buildStructure(JsonObject arguments) {
+        if (!arguments.has("primitive") || !arguments.has("origin")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'primitive' and 'origin'");
+            return err;
+        }
+
+        String primitive = arguments.get("primitive").getAsString().toLowerCase(Locale.ROOT);
+        JsonObject originObj = arguments.getAsJsonObject("origin");
+        int ox = originObj.get("x").getAsInt();
+        int oy = originObj.get("y").getAsInt();
+        int oz = originObj.get("z").getAsInt();
+
+        JsonObject sizeObj = arguments.has("size") ? arguments.getAsJsonObject("size") : null;
+        int sx = sizeObj != null && sizeObj.has("dx") ? sizeObj.get("dx").getAsInt() : 1;
+        int sy = sizeObj != null && sizeObj.has("dy") ? sizeObj.get("dy").getAsInt() : 1;
+        int sz = sizeObj != null && sizeObj.has("dz") ? sizeObj.get("dz").getAsInt() : 1;
+
+        String material = arguments.has("material") ? arguments.get("material").getAsString() : "cobblestone";
+        boolean replaceAirOnly = !arguments.has("replace_air_only") || arguments.get("replace_air_only").getAsBoolean();
+        boolean dryRun = arguments.has("dry_run") && arguments.get("dry_run").getAsBoolean();
+
+        List<BlockPos> targetVoxels = new ArrayList<>();
+
+        switch (primitive) {
+            case "wall" -> {
+                int dxStep = sx >= 0 ? 1 : -1;
+                int dyStep = sy >= 0 ? 1 : -1;
+                int dzStep = sz >= 0 ? 1 : -1;
+                if (Math.abs(sx) >= Math.abs(sz)) {
+                    for (int x = 0; x != sx; x += dxStep) {
+                        for (int y = 0; y != sy; y += dyStep) {
+                            targetVoxels.add(new BlockPos(ox + x, oy + y, oz));
+                        }
+                    }
+                } else {
+                    for (int z = 0; z != sz; z += dzStep) {
+                        for (int y = 0; y != sy; y += dyStep) {
+                            targetVoxels.add(new BlockPos(ox, oy + y, oz + z));
+                        }
+                    }
+                }
+            }
+            case "floor" -> {
+                int dxStep = sx >= 0 ? 1 : -1;
+                int dzStep = sz >= 0 ? 1 : -1;
+                for (int x = 0; x != sx; x += dxStep) {
+                    for (int z = 0; z != sz; z += dzStep) {
+                        targetVoxels.add(new BlockPos(ox + x, oy, oz + z));
+                    }
+                }
+            }
+            case "pillar" -> {
+                int dyStep = sy >= 0 ? 1 : -1;
+                for (int y = 0; y != sy; y += dyStep) {
+                    targetVoxels.add(new BlockPos(ox, oy + y, oz));
+                }
+            }
+            case "hollow_box" -> {
+                int minX = Math.min(ox, ox + sx);
+                int maxX = Math.max(ox, ox + sx);
+                int minY = Math.min(oy, oy + sy);
+                int maxY = Math.max(oy, oy + sy);
+                int minZ = Math.min(oz, oz + sz);
+                int maxZ = Math.max(oz, oz + sz);
+
+                for (int x = minX; x <= maxX; x++) {
+                    for (int y = minY; y <= maxY; y++) {
+                        for (int z = minZ; z <= maxZ; z++) {
+                            boolean isShell = (x == minX || x == maxX || y == minY || y == maxY || z == minZ || z == maxZ);
+                            if (isShell) {
+                                targetVoxels.add(new BlockPos(x, y, z));
+                            }
+                        }
+                    }
+                }
+            }
+            case "arch" -> {
+                int height = Math.max(2, Math.abs(sy));
+                int span = Math.max(2, Math.abs(sx != 1 ? sx : sz));
+                boolean spanX = Math.abs(sx) >= Math.abs(sz);
+
+                for (int y = 0; y < height; y++) {
+                    targetVoxels.add(new BlockPos(ox, oy + y, oz));
+                    if (spanX) targetVoxels.add(new BlockPos(ox + span, oy + y, oz));
+                    else targetVoxels.add(new BlockPos(ox, oy + y, oz + span));
+                }
+                for (int s = 0; s <= span; s++) {
+                    if (spanX) targetVoxels.add(new BlockPos(ox + s, oy + height, oz));
+                    else targetVoxels.add(new BlockPos(ox, oy + height, oz + s));
+                }
+            }
+            case "alcove" -> {
+                int w = Math.max(2, Math.abs(sx));
+                int h = Math.max(2, Math.abs(sy));
+                int d = Math.max(1, Math.abs(sz));
+                for (int y = 0; y < h; y++) {
+                    for (int z = 0; z < d; z++) targetVoxels.add(new BlockPos(ox, oy + y, oz + z));
+                }
+                for (int y = 0; y < h; y++) {
+                    for (int z = 0; z < d; z++) targetVoxels.add(new BlockPos(ox + w, oy + y, oz + z));
+                }
+                for (int x = 0; x <= w; x++) {
+                    for (int y = 0; y < h; y++) targetVoxels.add(new BlockPos(ox + x, oy + y, oz + d));
+                }
+                for (int x = 0; x <= w; x++) {
+                    for (int z = 0; z <= d; z++) targetVoxels.add(new BlockPos(ox + x, oy + h, oz + z));
+                }
+            }
+            default -> {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Unknown primitive: " + primitive + ". Supported: wall, floor, pillar, hollow_box, arch, alcove");
+                return err;
+            }
+        }
+
+        JsonObject res = new JsonObject();
+        res.addProperty("success", true);
+        res.addProperty("primitive", primitive);
+        res.addProperty("material", material);
+        res.addProperty("total_voxels", targetVoxels.size());
+        res.addProperty("dry_run", dryRun);
+
+        if (dryRun) {
+            JsonArray vArray = new JsonArray();
+            for (BlockPos bp : targetVoxels) {
+                JsonObject vObj = new JsonObject();
+                vObj.addProperty("x", bp.getX());
+                vObj.addProperty("y", bp.getY());
+                vObj.addProperty("z", bp.getZ());
+                vArray.add(vObj);
+            }
+            res.add("voxels", vArray);
+            return res;
+        }
+
+        JsonObject eqArgs = new JsonObject();
+        eqArgs.addProperty("item", material);
+        JsonObject eqRes = equipItem(eqArgs);
+        if (eqRes.has("isError") && eqRes.get("isError").getAsBoolean()) {
+            return eqRes;
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        var level = client.level;
+        if (level == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Level is null");
+            return err;
+        }
+
+        int placed = 0;
+        int skipped = 0;
+
+        for (BlockPos bp : targetVoxels) {
+            if (replaceAirOnly && !level.getBlockState(bp).isAir()) {
+                skipped++;
+                continue;
+            }
+
+            Direction targetFace = null;
+            BlockPos supportPos = null;
+            for (Direction d : Direction.values()) {
+                BlockPos neighbor = bp.relative(d);
+                if (level.getBlockState(neighbor).isSolid()) {
+                    supportPos = neighbor;
+                    targetFace = d.getOpposite();
+                    break;
+                }
+            }
+
+            if (supportPos != null && targetFace != null) {
+                JsonObject placeArgs = new JsonObject();
+                placeArgs.addProperty("x", bp.getX());
+                placeArgs.addProperty("y", bp.getY());
+                placeArgs.addProperty("z", bp.getZ());
+                placeArgs.addProperty("face", targetFace.getName());
+                JsonObject placeRes = placeBlock(placeArgs);
+                if (placeRes.has("success") && placeRes.get("success").getAsBoolean()) {
+                    placed++;
+                }
+            }
+        }
+
+        res.addProperty("blocks_placed", placed);
+        res.addProperty("blocks_skipped", skipped);
+        return res;
+    }
+
+    @Override
+    public JsonObject craftItem(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            if (!arguments.has("item")) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "Missing required parameter: 'item'");
+                return err;
+            }
+
+            String search = arguments.get("item").getAsString().toLowerCase(Locale.ROOT);
+            AbstractContainerMenu menu = player.containerMenu;
+            if (menu == null) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "No active container menu");
+                return err;
+            }
+
+            Slot outputSlot = menu.slots.get(0);
+            ItemStack outputStack = outputSlot.getItem();
+
+            if (!outputStack.isEmpty()) {
+                String id = BuiltInRegistries.ITEM.getKey(outputStack.getItem()).toString().toLowerCase(Locale.ROOT);
+                String name = outputStack.getHoverName().getString().toLowerCase(Locale.ROOT);
+                if (id.contains(search) || name.contains(search)) {
+                    int beforeCount = outputStack.getCount();
+                    client.gameMode.handleContainerInput(menu.containerId, 0, 0, ContainerInput.QUICK_MOVE, player);
+                    JsonObject res = new JsonObject();
+                    res.addProperty("success", true);
+                    res.addProperty("crafted_item", id);
+                    res.addProperty("count", beforeCount);
+                    return res;
+                }
+            }
+
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "CRAFTING_OUTPUT_EMPTY");
+            err.addProperty("message", "Output slot does not contain matching item '" + search + "'. Ensure recipe ingredients are placed in the crafting grid.");
+            return err;
+        });
     }
 }

@@ -806,6 +806,77 @@ public class MCPProtocol {
         sbTool.add("inputSchema", sbSchema);
         tools.add(sbTool);
 
+        // eat_food
+        JsonObject efTool = new JsonObject();
+        efTool.addProperty("name", "eat_food");
+        efTool.addProperty("description", "Autonomously selects best food from inventory (or specified item), equips, and holds right-click to eat.");
+        JsonObject efSchema = new JsonObject();
+        efSchema.addProperty("type", "object");
+        JsonObject efProps = new JsonObject();
+        JsonObject efFood = new JsonObject(); efFood.addProperty("type", "string"); efFood.addProperty("description", "Optional food item name (e.g. 'cooked_mutton', 'apple', 'bread')"); efProps.add("food", efFood);
+        JsonObject efWait = new JsonObject(); efWait.addProperty("type", "boolean"); efWait.addProperty("description", "Wait until eating animation completes (default: true)"); efProps.add("wait_completion", efWait);
+        efSchema.add("properties", efProps);
+        efTool.add("inputSchema", efSchema);
+        tools.add(efTool);
+
+        // build_structure
+        JsonObject bstrTool = new JsonObject();
+        bstrTool.addProperty("name", "build_structure");
+        bstrTool.addProperty("description", "Builds parametric Lego primitives (wall, floor, pillar, hollow_box, arch, alcove) in memory with auto-equip and natural pacing.");
+        JsonObject bstrSchema = new JsonObject();
+        bstrSchema.addProperty("type", "object");
+        JsonObject bstrProps = new JsonObject();
+        JsonObject bstrPrim = new JsonObject(); bstrPrim.addProperty("type", "string"); bstrPrim.addProperty("description", "Primitive type: 'wall', 'floor', 'pillar', 'hollow_box', 'arch', 'alcove'"); bstrProps.add("primitive", bstrPrim);
+        JsonObject bstrOrig = new JsonObject(); bstrOrig.addProperty("type", "object"); bstrOrig.addProperty("description", "Origin {x, y, z}"); bstrProps.add("origin", bstrOrig);
+        JsonObject bstrSize = new JsonObject(); bstrSize.addProperty("type", "object"); bstrSize.addProperty("description", "Size dimensions {dx, dy, dz}"); bstrProps.add("size", bstrSize);
+        JsonObject bstrMat = new JsonObject(); bstrMat.addProperty("type", "string"); bstrMat.addProperty("description", "Block material name (e.g. 'stone', 'cobblestone', 'oak_planks')"); bstrProps.add("material", bstrMat);
+        JsonObject bstrAir = new JsonObject(); bstrAir.addProperty("type", "boolean"); bstrAir.addProperty("description", "Only place in air blocks (default: true)"); bstrProps.add("replace_air_only", bstrAir);
+        JsonObject bstrDry = new JsonObject(); bstrDry.addProperty("type", "boolean"); bstrDry.addProperty("description", "Dry run preview without placing blocks"); bstrProps.add("dry_run", bstrDry);
+        JsonArray bstrReq = new JsonArray(); bstrReq.add("primitive"); bstrReq.add("origin");
+        bstrSchema.add("required", bstrReq);
+        bstrSchema.add("properties", bstrProps);
+        bstrTool.add("inputSchema", bstrSchema);
+        tools.add(bstrTool);
+
+        // craft_item
+        JsonObject ciTool = new JsonObject();
+        ciTool.addProperty("name", "craft_item");
+        ciTool.addProperty("description", "Takes crafted item from output slot 0 of open crafting menu directly to inventory.");
+        JsonObject ciSchema = new JsonObject();
+        ciSchema.addProperty("type", "object");
+        JsonObject ciProps = new JsonObject();
+        JsonObject ciItem = new JsonObject(); ciItem.addProperty("type", "string"); ciItem.addProperty("description", "Item name to collect from output"); ciProps.add("item", ciItem);
+        JsonObject ciCount = new JsonObject(); ciCount.addProperty("type", "integer"); ciCount.addProperty("description", "Requested craft count"); ciProps.add("count", ciCount);
+        JsonArray ciReq = new JsonArray(); ciReq.add("item");
+        ciSchema.add("required", ciReq);
+        ciSchema.add("properties", ciProps);
+        ciTool.add("inputSchema", ciSchema);
+        tools.add(ciTool);
+
+        // deposit_container
+        JsonObject dcTool = new JsonObject();
+        dcTool.addProperty("name", "deposit_container");
+        dcTool.addProperty("description", "Deposits items from player inventory into the currently open container via quick-move.");
+        JsonObject dcSchema = new JsonObject();
+        dcSchema.addProperty("type", "object");
+        JsonObject dcProps = new JsonObject();
+        JsonObject dcItem = new JsonObject(); dcItem.addProperty("type", "string"); dcItem.addProperty("description", "Item name or substring to deposit (or 'all')"); dcProps.add("item", dcItem);
+        dcSchema.add("properties", dcProps);
+        dcTool.add("inputSchema", dcSchema);
+        tools.add(dcTool);
+
+        // withdraw_container
+        JsonObject wcTool = new JsonObject();
+        wcTool.addProperty("name", "withdraw_container");
+        wcTool.addProperty("description", "Withdraws items from currently open container into player inventory via quick-move.");
+        JsonObject wcSchema = new JsonObject();
+        wcSchema.addProperty("type", "object");
+        JsonObject wcProps = new JsonObject();
+        JsonObject wcItem = new JsonObject(); wcItem.addProperty("type", "string"); wcItem.addProperty("description", "Item name or substring to withdraw (or 'all')"); wcProps.add("item", wcItem);
+        wcSchema.add("properties", wcProps);
+        wcTool.add("inputSchema", wcSchema);
+        tools.add(wcTool);
+
         // baritone_goto
         JsonObject bGotoTool = new JsonObject();
         bGotoTool.addProperty("name", "baritone_goto");

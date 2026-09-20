@@ -20,4 +20,7 @@ public interface IPlayerActionController {
     JsonObject equipItem(JsonObject arguments);
     JsonObject swapInventorySlots(JsonObject arguments);
     JsonObject sealBoundaries(JsonObject arguments);
+    JsonObject eatFood(JsonObject arguments);
+    JsonObject buildStructure(JsonObject arguments);
+    JsonObject craftItem(JsonObject arguments);
 }

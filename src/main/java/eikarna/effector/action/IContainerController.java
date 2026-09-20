@@ -7,4 +7,6 @@ public interface IContainerController {
     JsonObject clickSlot(JsonObject arguments);
     JsonObject clickButton(JsonObject arguments);
     JsonObject closeContainer();
+    JsonObject depositContainer(JsonObject arguments);
+    JsonObject withdrawContainer(JsonObject arguments);
 }
