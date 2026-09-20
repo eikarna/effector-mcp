@@ -73,10 +73,18 @@ public class PlayerActionController implements IPlayerActionController {
         yaw = SmoothLookController.wrapDegrees(yaw);
         pitch = Math.max(-90.0f, Math.min(90.0f, pitch));
 
-        var future = SmoothLookController.getInstance().lookAtSmooth(player, yaw, pitch, 0);
-        try {
-            future.get(600, TimeUnit.MILLISECONDS);
-        } catch (Exception ignored) {}
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.yRotO = yaw;
+        player.xRotO = pitch;
+        player.yHeadRot = yaw;
+        player.yHeadRotO = yaw;
+        player.yBodyRot = yaw;
+        player.yBodyRotO = yaw;
+
+        if (player.connection != null) {
+            player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+        }
     }
 
     private static final Set<String> PROTECTED_BLOCKS = Set.of(
@@ -177,65 +185,86 @@ public class PlayerActionController implements IPlayerActionController {
 
     @Override
     public JsonObject lookAt(JsonObject arguments) {
-        return runOnClientThread((client, player) -> {
-            if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
-                JsonObject err = new JsonObject();
-                err.addProperty("isError", true);
-                err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
-                return err;
-            }
+        if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+            return err;
+        }
 
-            double targetX = arguments.get("x").getAsDouble();
-            double targetY = arguments.get("y").getAsDouble();
-            double targetZ = arguments.get("z").getAsDouble();
+        double targetX = arguments.get("x").getAsDouble();
+        double targetY = arguments.get("y").getAsDouble();
+        double targetZ = arguments.get("z").getAsDouble();
+        int durationTicks = arguments.has("ticks") ? arguments.get("ticks").getAsInt() : 0;
+        boolean smooth = !arguments.has("smooth") || arguments.get("smooth").getAsBoolean();
 
-            double eyeX = player.getX();
-            double eyeY = player.getEyeY();
-            double eyeZ = player.getZ();
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Player is null");
+            return err;
+        }
 
-            double dx = targetX - eyeX;
-            double dy = targetY - eyeY;
-            double dz = targetZ - eyeZ;
+        LocalPlayer player = client.player;
+        double eyeX = player.getX();
+        double eyeY = player.getEyeY();
+        double eyeZ = player.getZ();
 
-            double horizontalDist = Math.sqrt(dx * dx + dz * dz);
-            float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0f;
-            float pitch = (float) -(Math.atan2(dy, horizontalDist) * 180.0 / Math.PI);
+        double dx = targetX - eyeX;
+        double dy = targetY - eyeY;
+        double dz = targetZ - eyeZ;
 
-            yaw = SmoothLookController.wrapDegrees(yaw);
-            pitch = Math.max(-90.0f, Math.min(90.0f, pitch));
+        double horizontalDist = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0f;
+        float pitch = (float) -(Math.atan2(dy, horizontalDist) * 180.0 / Math.PI);
 
-            int durationTicks = arguments.has("ticks") ? arguments.get("ticks").getAsInt() : 0;
-            boolean smooth = !arguments.has("smooth") || arguments.get("smooth").getAsBoolean();
+        yaw = SmoothLookController.wrapDegrees(yaw);
+        pitch = Math.max(-90.0f, Math.min(90.0f, pitch));
 
-            if (smooth) {
-                var future = SmoothLookController.getInstance().lookAtSmooth(player, yaw, pitch, durationTicks);
-                try {
-                    future.get(1, TimeUnit.SECONDS);
-                } catch (Exception ignored) {}
-            } else {
-                player.setYRot(yaw);
-                player.setXRot(pitch);
-                player.yRotO = yaw;
-                player.xRotO = pitch;
-                player.yHeadRot = yaw;
-                player.yHeadRotO = yaw;
-                player.yBodyRot = yaw;
-                player.yBodyRotO = yaw;
+        final float finalYaw = yaw;
+        final float finalPitch = pitch;
 
-                if (player.connection != null) {
-                    player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+        if (smooth) {
+            CompletableFuture<Void> lookFuture = new CompletableFuture<>();
+            client.execute(() -> {
+                if (client.player != null) {
+                    SmoothLookController.getInstance().lookAtSmooth(client.player, finalYaw, finalPitch, durationTicks)
+                        .whenComplete((res, ex) -> lookFuture.complete(null));
+                } else {
+                    lookFuture.complete(null);
                 }
-            }
+            });
+            try {
+                lookFuture.get(800, TimeUnit.MILLISECONDS);
+            } catch (Exception ignored) {}
+        } else {
+            client.execute(() -> {
+                if (client.player != null) {
+                    client.player.setYRot(finalYaw);
+                    client.player.setXRot(finalPitch);
+                    client.player.yRotO = finalYaw;
+                    client.player.xRotO = finalPitch;
+                    client.player.yHeadRot = finalYaw;
+                    client.player.yHeadRotO = finalYaw;
+                    client.player.yBodyRot = finalYaw;
+                    client.player.yBodyRotO = finalYaw;
+                    if (client.player.connection != null) {
+                        client.player.connection.send(new ServerboundMovePlayerPacket.Rot(finalYaw, finalPitch, client.player.onGround(), client.player.horizontalCollision));
+                    }
+                }
+            });
+        }
 
-            JsonObject res = new JsonObject();
-            res.addProperty("success", true);
-            res.addProperty("yaw", yaw);
-            res.addProperty("pitch", pitch);
-            res.addProperty("targetX", targetX);
-            res.addProperty("targetY", targetY);
-            res.addProperty("targetZ", targetZ);
-            return res;
-        });
+        JsonObject res = new JsonObject();
+        res.addProperty("success", true);
+        res.addProperty("yaw", finalYaw);
+        res.addProperty("pitch", finalPitch);
+        res.addProperty("targetX", targetX);
+        res.addProperty("targetY", targetY);
+        res.addProperty("targetZ", targetZ);
+        res.addProperty("smooth", smooth);
+        return res;
     }
 
     @Override
