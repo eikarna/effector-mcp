@@ -435,7 +435,8 @@ public class PlayerActionController implements IPlayerActionController {
             }
 
             BlockState state = client.level.getBlockState(targetPos);
-            if (isProtectedBlock(state)) {
+            boolean force = arguments.has("force") && arguments.get("force").getAsBoolean();
+            if (isProtectedBlock(state) && !force) {
                 JsonObject err = new JsonObject();
                 err.addProperty("isError", true);
                 err.addProperty("error", "PROTECTED_BLOCK");
@@ -500,7 +501,8 @@ public class PlayerActionController implements IPlayerActionController {
         }
 
         BlockState state = client.level.getBlockState(targetPos);
-        if (isProtectedBlock(state)) {
+        boolean force = arguments.has("force") && arguments.get("force").getAsBoolean();
+        if (isProtectedBlock(state) && !force) {
             JsonObject err = new JsonObject();
             err.addProperty("isError", true);
             err.addProperty("error", "PROTECTED_BLOCK");

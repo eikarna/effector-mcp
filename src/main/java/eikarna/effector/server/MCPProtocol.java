@@ -685,6 +685,7 @@ public class MCPProtocol {
         JsonObject my = new JsonObject(); my.addProperty("type", "integer"); my.addProperty("description", "Block Y coordinate"); mineProps.add("y", my);
         JsonObject mz = new JsonObject(); mz.addProperty("type", "integer"); mz.addProperty("description", "Block Z coordinate"); mineProps.add("z", mz);
         JsonObject mWait = new JsonObject(); mWait.addProperty("type", "boolean"); mWait.addProperty("description", "Wait for completion (default: true)"); mineProps.add("wait_completion", mWait);
+        JsonObject mForce = new JsonObject(); mForce.addProperty("type", "boolean"); mForce.addProperty("description", "Override Zero-Grief Guard during intentional base remodeling/renovation (default: false)"); mineProps.add("force", mForce);
         JsonArray mReq = new JsonArray(); mReq.add("x"); mReq.add("y"); mReq.add("z");
         mineSchema.add("required", mReq);
         mineSchema.add("properties", mineProps);
