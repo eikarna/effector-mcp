@@ -70,23 +70,13 @@ public class PlayerActionController implements IPlayerActionController {
         float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0f;
         float pitch = (float) -(Math.atan2(dy, horizontalDist) * 180.0 / Math.PI);
 
-        yaw = yaw % 360.0f;
-        if (yaw > 180.0f) yaw -= 360.0f;
-        if (yaw < -180.0f) yaw += 360.0f;
+        yaw = SmoothLookController.wrapDegrees(yaw);
         pitch = Math.max(-90.0f, Math.min(90.0f, pitch));
 
-        player.setYRot(yaw);
-        player.setXRot(pitch);
-        player.yRotO = yaw;
-        player.xRotO = pitch;
-        player.yHeadRot = yaw;
-        player.yHeadRotO = yaw;
-        player.yBodyRot = yaw;
-        player.yBodyRotO = yaw;
-
-        if (player.connection != null) {
-            player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
-        }
+        var future = SmoothLookController.getInstance().lookAtSmooth(player, yaw, pitch, 0);
+        try {
+            future.get(600, TimeUnit.MILLISECONDS);
+        } catch (Exception ignored) {}
     }
 
     private static final Set<String> PROTECTED_BLOCKS = Set.of(
@@ -211,22 +201,30 @@ public class PlayerActionController implements IPlayerActionController {
             float yaw = (float) (Math.atan2(dz, dx) * 180.0 / Math.PI) - 90.0f;
             float pitch = (float) -(Math.atan2(dy, horizontalDist) * 180.0 / Math.PI);
 
-            yaw = yaw % 360.0f;
-            if (yaw > 180.0f) yaw -= 360.0f;
-            if (yaw < -180.0f) yaw += 360.0f;
+            yaw = SmoothLookController.wrapDegrees(yaw);
             pitch = Math.max(-90.0f, Math.min(90.0f, pitch));
 
-            player.setYRot(yaw);
-            player.setXRot(pitch);
-            player.yRotO = yaw;
-            player.xRotO = pitch;
-            player.yHeadRot = yaw;
-            player.yHeadRotO = yaw;
-            player.yBodyRot = yaw;
-            player.yBodyRotO = yaw;
+            int durationTicks = arguments.has("ticks") ? arguments.get("ticks").getAsInt() : 0;
+            boolean smooth = !arguments.has("smooth") || arguments.get("smooth").getAsBoolean();
 
-            if (player.connection != null) {
-                player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+            if (smooth) {
+                var future = SmoothLookController.getInstance().lookAtSmooth(player, yaw, pitch, durationTicks);
+                try {
+                    future.get(1, TimeUnit.SECONDS);
+                } catch (Exception ignored) {}
+            } else {
+                player.setYRot(yaw);
+                player.setXRot(pitch);
+                player.yRotO = yaw;
+                player.xRotO = pitch;
+                player.yHeadRot = yaw;
+                player.yHeadRotO = yaw;
+                player.yBodyRot = yaw;
+                player.yBodyRotO = yaw;
+
+                if (player.connection != null) {
+                    player.connection.send(new ServerboundMovePlayerPacket.Rot(yaw, pitch, player.onGround(), player.horizontalCollision));
+                }
             }
 
             JsonObject res = new JsonObject();

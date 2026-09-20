@@ -91,6 +91,9 @@ public class AutonomousReflexController implements IReflexController {
             return;
         }
 
+        // 0a. Smooth Camera Interpolation (Baritone-like human look)
+        SmoothLookController.getInstance().onClientTick(client);
+
         if (attackCooldownTicks > 0) attackCooldownTicks--;
         if (creeperDodgeTicks > 0) {
             creeperDodgeTicks--;
