@@ -53,6 +53,7 @@ public class AutonomousReflexController implements IReflexController {
     // Combat & evasion state machine
     private int attackCooldownTicks = 0;
     private int creeperDodgeTicks = 0;
+    private int deathCooldownTicks = 0;
 
     // Continuous Single-Block Mining State Machine
     private BlockPos targetMiningPos = null;
@@ -94,8 +95,17 @@ public class AutonomousReflexController implements IReflexController {
         LocalPlayer player = client.player;
         if (!player.isAlive()) {
             resetStates(client);
+            deathCooldownTicks++;
+            if (deathCooldownTicks >= 20) {
+                deathCooldownTicks = 0;
+                player.respawn();
+                if (client.gui != null) {
+                    client.gui.setScreen(null);
+                }
+            }
             return;
         }
+        deathCooldownTicks = 0;
 
         // 0a. Smooth Camera Interpolation (Baritone-like human look)
         SmoothLookController.getInstance().onClientTick(client);

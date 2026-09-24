@@ -109,4 +109,9 @@ public class ServerPlayerActionController implements IPlayerActionController {
     public JsonObject craftItem(JsonObject arguments) {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject respawn(JsonObject arguments) {
+        return notAvailable();
+    }
 }

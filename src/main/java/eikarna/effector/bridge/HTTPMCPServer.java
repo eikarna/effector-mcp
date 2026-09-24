@@ -455,6 +455,9 @@ public class HTTPMCPServer {
                 case "craft_item" -> {
                     return wrapToolResult(playerActionController.craftItem(arguments));
                 }
+                case "respawn" -> {
+                    return wrapToolResult(playerActionController.respawn(arguments));
+                }
                 case "baritone_goto" -> {
                     if (baritoneController == null) {
                         JsonObject err = new JsonObject();

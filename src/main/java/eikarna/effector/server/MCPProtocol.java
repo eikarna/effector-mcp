@@ -853,6 +853,15 @@ public class MCPProtocol {
         ciTool.add("inputSchema", ciSchema);
         tools.add(ciTool);
 
+        // respawn
+        JsonObject rsTool = new JsonObject();
+        rsTool.addProperty("name", "respawn");
+        rsTool.addProperty("description", "Respawns the player if dead and dismisses the death screen.");
+        JsonObject rsSchema = new JsonObject();
+        rsSchema.addProperty("type", "object");
+        rsTool.add("inputSchema", rsSchema);
+        tools.add(rsTool);
+
         // deposit_container
         JsonObject dcTool = new JsonObject();
         dcTool.addProperty("name", "deposit_container");

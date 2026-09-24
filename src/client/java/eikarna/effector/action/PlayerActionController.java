@@ -1427,4 +1427,18 @@ public class PlayerActionController implements IPlayerActionController {
             return err;
         });
     }
+
+    @Override
+    public JsonObject respawn(JsonObject arguments) {
+        return runOnClientThread((client, player) -> {
+            player.respawn();
+            if (client.gui != null) {
+                client.gui.setScreen(null);
+            }
+            JsonObject res = new JsonObject();
+            res.addProperty("success", true);
+            res.addProperty("message", "Triggered respawn");
+            return res;
+        });
+    }
 }
