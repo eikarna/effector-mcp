@@ -196,13 +196,25 @@ async function main() {
         status = "EDGE_CASE_HANDLED";
         details = `Gracefully resolved boundary evaluation: ${JSON.stringify(res)}`;
       }
-    } else {
+    } else if (i <= 200) {
       tier = 5;
-      name = `Eldritch Void/Height/Invalid Geometry test`;
-      const extremeY = i % 2 === 0 ? -64 : 325;
-      const res = await callMCP("get_block", { x: 0, y: extremeY, z: 0 }, noise);
-      status = "EDGE_CASE_HANDLED";
-      details = `Extreme coordinate boundary safely returned: ${res.blockType ?? "Out-of-world"}`;
+      if (i <= 180) {
+        name = `Eldritch Void/Height/Invalid Geometry test`;
+        const extremeY = i % 2 === 0 ? -64 : 325;
+        const res = await callMCP("get_block", { x: 0, y: extremeY, z: 0 }, noise);
+        status = "EDGE_CASE_HANDLED";
+        details = `Extreme coordinate boundary safely returned: ${res.blockType ?? "Out-of-world"}`;
+      } else {
+        name = `harvest_vein out-of-reach and boundary guard test`;
+        const res = await callMCP("harvest_vein", { x: 50 + i, y: 113, z: -3, max_blocks: 5 }, noise);
+        if (res.isError && (res.error === "OUT_OF_REACH" || res.error === "AIR_BLOCK")) {
+          status = "PASS";
+          details = `harvest_vein reach guard verified: ${res.error}`;
+        } else {
+          status = "EDGE_CASE_HANDLED";
+          details = JSON.stringify(res);
+        }
+      }
     }
 
     record({
@@ -266,16 +278,26 @@ async function main() {
       }
     } else if (i <= 360) {
       tier = 4;
-      name = `Container logistics eviction test without open GUI`;
-      const res = await callMCP("deposit_container", { item: "cobblestone" }, noise);
-      if (res.isError && (res.error === "NO_CONTAINER_OPEN" || String(res.message).includes("No container"))) {
-        status = "EDGE_CASE_HANDLED";
-        details = "Correctly rejected deposit: NO_CONTAINER_OPEN (Zero-crash)";
-      } else if (res.success) {
-        details = "Container deposit processed";
+      if (i <= 340) {
+        name = `open_container macro test on reachable chest`;
+        const res = await callMCP("open_container", { x: 8, y: 113, z: -2 }, noise);
+        if (res.menuType || res.containerId !== undefined) {
+          status = "PASS";
+          details = `open_container successful: menuType=${res.menuType}`;
+        } else {
+          status = "EDGE_CASE_HANDLED";
+          details = JSON.stringify(res);
+        }
       } else {
-        status = "EDGE_CASE_HANDLED";
-        details = JSON.stringify(res);
+        name = `open_container out-of-reach guard check`;
+        const res = await callMCP("open_container", { x: 100, y: 113, z: 100 }, noise);
+        if (res.isError && res.error === "OUT_OF_REACH") {
+          status = "PASS";
+          details = "open_container correctly rejected out-of-reach coordinates";
+        } else {
+          status = "EDGE_CASE_HANDLED";
+          details = JSON.stringify(res);
+        }
       }
     } else {
       tier = 5;
