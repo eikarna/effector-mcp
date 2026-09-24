@@ -413,7 +413,7 @@ public class HTTPMCPServer {
                     }
                     return handleTakeScreenshot(arguments);
                 }
-                case "set_player_look" -> {
+                case "set_player_look", "set_look" -> {
                     return wrapToolResult(playerActionController.setLook(arguments));
                 }
                 case "look_at" -> {
