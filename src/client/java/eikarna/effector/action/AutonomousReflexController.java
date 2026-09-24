@@ -55,6 +55,13 @@ public class AutonomousReflexController implements IReflexController {
     private int creeperDodgeTicks = 0;
     private int deathCooldownTicks = 0;
 
+    // MLG Water Clutch state
+    private boolean mlgClutchActive = false;
+    private int mlgClutchTicks = 0;
+    private int mlgPreviousSlot = -1;
+    private float mlgPreviousPitch = 0.0f;
+    private boolean autoMlgClutchEnabled = true;
+
     // Continuous Single-Block Mining State Machine
     private BlockPos targetMiningPos = null;
     private Direction targetMiningFace = Direction.UP;
@@ -130,6 +137,9 @@ public class AutonomousReflexController implements IReflexController {
         if (autoDefenseEnabled && !isEating && targetMiningPos == null) {
             handleAutoDefense(client, player);
         }
+
+        // 2b. MLG Water Clutch Reflex (save from high-velocity falling damage)
+        handleMlgWaterClutch(client, player);
 
         // 3. Auto-Loot Reflex (collect floating items nearby)
         if (autoLootEnabled && !isEating && creeperDodgeTicks == 0 && targetMiningPos == null) {
@@ -761,6 +771,75 @@ public class AutonomousReflexController implements IReflexController {
             client.options.keyDown.setDown(false);
             client.options.keyJump.setDown(false);
         }
+    }
+
+    private void handleMlgWaterClutch(Minecraft client, LocalPlayer player) {
+        if (!autoMlgClutchEnabled || client.level == null || client.gameMode == null) return;
+
+        if (mlgClutchActive) {
+            mlgClutchTicks++;
+            if (mlgClutchTicks == 2) {
+                client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+            } else if (mlgClutchTicks >= 4) {
+                if (mlgPreviousSlot != -1) {
+                    setPlayerSelectedSlot(player, mlgPreviousSlot);
+                }
+                player.setXRot(mlgPreviousPitch);
+                mlgClutchActive = false;
+                mlgClutchTicks = 0;
+                mlgPreviousSlot = -1;
+            }
+            return;
+        }
+
+        Vec3 vel = player.getDeltaMovement();
+        if (vel.y < -0.7 && !player.onGround() && !player.isInWater() && !player.isFallFlying()) {
+            BlockPos playerPos = player.blockPosition();
+            BlockPos landingPos = null;
+            for (int dy = 1; dy <= 4; dy++) {
+                BlockPos checkPos = playerPos.below(dy);
+                BlockState st = client.level.getBlockState(checkPos);
+                if (st.isSolid() || st.isFaceSturdy(client.level, checkPos, Direction.UP)) {
+                    landingPos = checkPos;
+                    break;
+                }
+            }
+
+            if (landingPos != null) {
+                int waterSlot = findItemSlot(player, "water_bucket");
+                if (waterSlot != -1) {
+                    mlgPreviousSlot = player.getInventory().getSelectedSlot();
+                    mlgPreviousPitch = player.getXRot();
+
+                    if (waterSlot >= 9) {
+                        int currentHotbar = mlgPreviousSlot;
+                        client.gameMode.handleContainerInput(0, waterSlot, currentHotbar, ContainerInput.SWAP, player);
+                    } else {
+                        setPlayerSelectedSlot(player, waterSlot);
+                    }
+
+                    player.setXRot(90.0f);
+                    client.gameMode.useItem(player, InteractionHand.MAIN_HAND);
+                    mlgClutchActive = true;
+                    mlgClutchTicks = 0;
+                    LOGGER.info("MLG Water Clutch: Deployed water at fall velocity {}", vel.y);
+                }
+            }
+        }
+    }
+
+    private int findItemSlot(LocalPlayer player, String query) {
+        String q = query.toLowerCase(Locale.ROOT);
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                String id = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().toLowerCase(Locale.ROOT);
+                if (id.contains(q)) {
+                    return i;
+                }
+            }
+        }
+        return -1;
     }
 
     public JsonObject configure(JsonObject arguments) {

@@ -565,6 +565,48 @@ public class PlayerActionController implements IPlayerActionController {
         });
     }
 
+    private void autoSelectBestTool(Minecraft client, LocalPlayer player, BlockState state) {
+        if (player == null || state == null) return;
+
+        int bestHotbarSlot = -1;
+        float bestSpeed = 1.0f;
+
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                float speed = stack.getDestroySpeed(state);
+                if (speed > bestSpeed) {
+                    bestSpeed = speed;
+                    bestHotbarSlot = i;
+                }
+            }
+        }
+
+        int bestBackpackSlot = -1;
+        if (bestSpeed <= 1.0f) {
+            for (int i = 9; i < 36; i++) {
+                ItemStack stack = player.getInventory().getItem(i);
+                if (!stack.isEmpty()) {
+                    float speed = stack.getDestroySpeed(state);
+                    if (speed > bestSpeed) {
+                        bestSpeed = speed;
+                        bestBackpackSlot = i;
+                    }
+                }
+            }
+        }
+
+        if (bestHotbarSlot != -1) {
+            player.getInventory().setSelectedSlot(bestHotbarSlot);
+            if (player.connection != null) {
+                player.connection.send(new ServerboundSetCarriedItemPacket(bestHotbarSlot));
+            }
+        } else if (bestBackpackSlot != -1 && client.gameMode != null) {
+            int currentHotbar = player.getInventory().getSelectedSlot();
+            client.gameMode.handleContainerInput(0, bestBackpackSlot, currentHotbar, ContainerInput.SWAP, player);
+        }
+    }
+
     @Override
     public JsonObject mineBlock(JsonObject arguments) {
         if (arguments.has("x2") || arguments.has("y2") || arguments.has("z2")) {
@@ -594,6 +636,25 @@ public class PlayerActionController implements IPlayerActionController {
 
         BlockState state = client.level.getBlockState(targetPos);
         boolean force = arguments.has("force") && arguments.get("force").getAsBoolean();
+
+        if (client.player != null) {
+            double distSq = client.player.getEyePosition().distanceToSqr(x + 0.5, y + 0.5, z + 0.5);
+            if (distSq > 30.25) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "OUT_OF_REACH");
+                err.addProperty("message", "Target block is out of reach distance (" + String.format(Locale.ROOT, "%.2f", Math.sqrt(distSq)) + " blocks, max reach is 4.5)");
+                err.addProperty("targetX", x);
+                err.addProperty("targetY", y);
+                err.addProperty("targetZ", z);
+                return err;
+            }
+
+            boolean autoTool = !arguments.has("auto_tool") || arguments.get("auto_tool").getAsBoolean();
+            if (autoTool) {
+                autoSelectBestTool(client, client.player, state);
+            }
+        }
         if (isProtectedBlock(state) && !force) {
             JsonObject err = new JsonObject();
             err.addProperty("isError", true);

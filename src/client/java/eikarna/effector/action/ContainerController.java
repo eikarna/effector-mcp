@@ -241,7 +241,8 @@ public class ContainerController implements IContainerController {
             if (menu == null || menu == player.inventoryMenu) {
                 JsonObject err = new JsonObject();
                 err.addProperty("isError", true);
-                err.addProperty("error", "No external container menu open");
+                err.addProperty("error", "NO_CONTAINER_OPEN");
+                err.addProperty("message", "No external container menu open. Interact with a chest/container first.");
                 return err;
             }
 
@@ -280,7 +281,8 @@ public class ContainerController implements IContainerController {
             if (menu == null || menu == player.inventoryMenu) {
                 JsonObject err = new JsonObject();
                 err.addProperty("isError", true);
-                err.addProperty("error", "No external container menu open");
+                err.addProperty("error", "NO_CONTAINER_OPEN");
+                err.addProperty("message", "No external container menu open. Interact with a chest/container first.");
                 return err;
             }
 
