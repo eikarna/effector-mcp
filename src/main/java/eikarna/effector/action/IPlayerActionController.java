@@ -24,4 +24,5 @@ public interface IPlayerActionController {
     JsonObject buildStructure(JsonObject arguments);
     JsonObject craftItem(JsonObject arguments);
     JsonObject respawn(JsonObject arguments);
+    JsonObject harvestVein(JsonObject arguments);
 }

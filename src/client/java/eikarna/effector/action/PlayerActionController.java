@@ -28,8 +28,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -285,6 +288,18 @@ public class PlayerActionController implements IPlayerActionController {
             int y = arguments.get("y").getAsInt();
             int z = arguments.get("z").getAsInt();
 
+            double distSq = player.getEyePosition().distanceToSqr(x + 0.5, y + 0.5, z + 0.5);
+            if (distSq > 30.25) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "OUT_OF_REACH");
+                err.addProperty("message", "Target block is out of reach distance (" + String.format(Locale.ROOT, "%.2f", Math.sqrt(distSq)) + " blocks, max reach is 4.5)");
+                err.addProperty("targetX", x);
+                err.addProperty("targetY", y);
+                err.addProperty("targetZ", z);
+                return err;
+            }
+
             Direction face = Direction.UP;
             if (arguments.has("direction")) {
                 Direction parsed = Direction.byName(arguments.get("direction").getAsString().toLowerCase(Locale.ROOT));
@@ -316,6 +331,9 @@ public class PlayerActionController implements IPlayerActionController {
             InteractionResult result = client.gameMode.useItemOn(player, hand, hitResult);
 
             JsonObject res = new JsonObject();
+            if (result.consumesAction()) {
+                player.swing(hand);
+            }
             res.addProperty("success", result.consumesAction());
             res.addProperty("result", result.toString());
             res.addProperty("targetX", x);
@@ -350,6 +368,18 @@ public class PlayerActionController implements IPlayerActionController {
             int targetY = arguments.get("y").getAsInt();
             int targetZ = arguments.get("z").getAsInt();
             BlockPos targetPos = new BlockPos(targetX, targetY, targetZ);
+
+            double distSq = player.getEyePosition().distanceToSqr(targetX + 0.5, targetY + 0.5, targetZ + 0.5);
+            if (distSq > 30.25) {
+                JsonObject err = new JsonObject();
+                err.addProperty("isError", true);
+                err.addProperty("error", "OUT_OF_REACH");
+                err.addProperty("message", "Target placement is out of reach distance (" + String.format(Locale.ROOT, "%.2f", Math.sqrt(distSq)) + " blocks, max reach is 4.5)");
+                err.addProperty("targetX", targetX);
+                err.addProperty("targetY", targetY);
+                err.addProperty("targetZ", targetZ);
+                return err;
+            }
 
             if (client.level == null || client.gameMode == null) {
                 JsonObject err = new JsonObject();
@@ -1501,5 +1531,104 @@ public class PlayerActionController implements IPlayerActionController {
             res.addProperty("message", "Triggered respawn");
             return res;
         });
+    }
+
+    @Override
+    public JsonObject harvestVein(JsonObject arguments) {
+        if (!arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+            return err;
+        }
+
+        int startX = arguments.get("x").getAsInt();
+        int startY = arguments.get("y").getAsInt();
+        int startZ = arguments.get("z").getAsInt();
+        int maxBlocks = arguments.has("max_blocks") ? Math.min(64, Math.max(1, arguments.get("max_blocks").getAsInt())) : 16;
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null || client.gameMode == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Level/Player/GameMode is null");
+            return err;
+        }
+
+        LocalPlayer player = client.player;
+        BlockPos originPos = new BlockPos(startX, startY, startZ);
+        double distSq = player.getEyePosition().distanceToSqr(startX + 0.5, startY + 0.5, startZ + 0.5);
+        if (distSq > 30.25) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "OUT_OF_REACH");
+            err.addProperty("message", "Origin block is out of reach distance");
+            return err;
+        }
+
+        BlockState originState = client.level.getBlockState(originPos);
+        if (originState.isAir()) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "AIR_BLOCK");
+            err.addProperty("message", "Target block is air");
+            return err;
+        }
+
+        String targetBlockKey = BuiltInRegistries.BLOCK.getKey(originState.getBlock()).toString();
+        Queue<BlockPos> queue = new LinkedList<>();
+        Set<BlockPos> visited = new HashSet<>();
+        List<BlockPos> veinBlocks = new ArrayList<>();
+
+        queue.add(originPos);
+        visited.add(originPos);
+
+        while (!queue.isEmpty() && veinBlocks.size() < maxBlocks) {
+            BlockPos current = queue.poll();
+            BlockState curState = client.level.getBlockState(current);
+            String curKey = BuiltInRegistries.BLOCK.getKey(curState.getBlock()).toString();
+
+            if (curKey.equals(targetBlockKey)) {
+                double d = player.getEyePosition().distanceToSqr(current.getX() + 0.5, current.getY() + 0.5, current.getZ() + 0.5);
+                if (d <= 30.25) {
+                    veinBlocks.add(current);
+                }
+
+                for (Direction dir : Direction.values()) {
+                    BlockPos neighbor = current.relative(dir);
+                    if (!visited.contains(neighbor) && visited.size() < 256) {
+                        visited.add(neighbor);
+                        if (client.level.getBlockState(neighbor).getBlock() == originState.getBlock()) {
+                            queue.add(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+
+        JsonArray minedCoords = new JsonArray();
+        int harvested = 0;
+        for (BlockPos bPos : veinBlocks) {
+            BlockState st = client.level.getBlockState(bPos);
+            if (!st.isAir()) {
+                autoSelectBestTool(client, player, st);
+                lookAtVec(player, new Vec3(bPos.getX() + 0.5, bPos.getY() + 0.5, bPos.getZ() + 0.5));
+                client.gameMode.destroyBlock(bPos);
+                player.swing(InteractionHand.MAIN_HAND);
+                harvested++;
+                JsonObject coord = new JsonObject();
+                coord.addProperty("x", bPos.getX());
+                coord.addProperty("y", bPos.getY());
+                coord.addProperty("z", bPos.getZ());
+                minedCoords.add(coord);
+            }
+        }
+
+        JsonObject res = new JsonObject();
+        res.addProperty("success", true);
+        res.addProperty("block_type", targetBlockKey);
+        res.addProperty("harvested_count", harvested);
+        res.add("blocks", minedCoords);
+        return res;
     }
 }

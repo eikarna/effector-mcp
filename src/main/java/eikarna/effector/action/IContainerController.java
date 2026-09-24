@@ -9,4 +9,5 @@ public interface IContainerController {
     JsonObject closeContainer();
     JsonObject depositContainer(JsonObject arguments);
     JsonObject withdrawContainer(JsonObject arguments);
+    JsonObject openContainer(JsonObject arguments);
 }

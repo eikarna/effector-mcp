@@ -5,9 +5,15 @@ import com.google.gson.JsonObject;
 import eikarna.effector.utils.ItemSerializer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.*;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -312,5 +318,68 @@ public class ContainerController implements IContainerController {
             res.addProperty("target_item", targetItem);
             return res;
         });
+    }
+
+    @Override
+    public JsonObject openContainer(JsonObject arguments) {
+        if (arguments == null || !arguments.has("x") || !arguments.has("y") || !arguments.has("z")) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Missing required parameters: 'x', 'y', 'z'");
+            return err;
+        }
+
+        int x = arguments.get("x").getAsInt();
+        int y = arguments.get("y").getAsInt();
+        int z = arguments.get("z").getAsInt();
+
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.gameMode == null || client.level == null) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "Player/GameMode/Level is null");
+            return err;
+        }
+
+        LocalPlayer player = client.player;
+        double distSq = player.getEyePosition().distanceToSqr(x + 0.5, y + 0.5, z + 0.5);
+        if (distSq > 30.25) {
+            JsonObject err = new JsonObject();
+            err.addProperty("isError", true);
+            err.addProperty("error", "OUT_OF_REACH");
+            err.addProperty("message", "Container is out of reach distance (" + String.format(Locale.ROOT, "%.2f", Math.sqrt(distSq)) + " blocks, max reach is 4.5)");
+            err.addProperty("targetX", x);
+            err.addProperty("targetY", y);
+            err.addProperty("targetZ", z);
+            return err;
+        }
+
+        CompletableFuture<Boolean> triggerFuture = new CompletableFuture<>();
+        client.execute(() -> {
+            BlockPos targetPos = new BlockPos(x, y, z);
+            Vec3 hitVec = new Vec3(x + 0.5, y + 0.5, z + 0.5);
+            BlockHitResult hitResult = new BlockHitResult(hitVec, Direction.UP, targetPos, false);
+            InteractionResult res = client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hitResult);
+            if (res.consumesAction()) {
+                player.swing(InteractionHand.MAIN_HAND);
+            }
+            triggerFuture.complete(res.consumesAction());
+        });
+
+        try {
+            triggerFuture.get(500, TimeUnit.MILLISECONDS);
+        } catch (Exception ignored) {}
+
+        long startTime = System.currentTimeMillis();
+        while (System.currentTimeMillis() - startTime < 600) {
+            if (client.player != null && client.player.containerMenu != client.player.inventoryMenu) {
+                break;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException ignored) {}
+        }
+
+        return getOpenContainer();
     }
 }

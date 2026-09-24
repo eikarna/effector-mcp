@@ -862,6 +862,39 @@ public class MCPProtocol {
         rsTool.add("inputSchema", rsSchema);
         tools.add(rsTool);
 
+        // open_container
+        JsonObject ocTool = new JsonObject();
+        ocTool.addProperty("name", "open_container");
+        ocTool.addProperty("description", "Interacts with a container block (chest, crafting table, furnace, barrel) at (x, y, z), waits for GUI sync, and returns container contents.");
+        JsonObject ocSchema = new JsonObject();
+        ocSchema.addProperty("type", "object");
+        JsonObject ocProps = new JsonObject();
+        JsonObject ocX = new JsonObject(); ocX.addProperty("type", "integer"); ocX.addProperty("description", "Target X coordinate"); ocProps.add("x", ocX);
+        JsonObject ocY = new JsonObject(); ocY.addProperty("type", "integer"); ocY.addProperty("description", "Target Y coordinate"); ocProps.add("y", ocY);
+        JsonObject ocZ = new JsonObject(); ocZ.addProperty("type", "integer"); ocZ.addProperty("description", "Target Z coordinate"); ocProps.add("z", ocZ);
+        JsonArray ocReq = new JsonArray(); ocReq.add("x"); ocReq.add("y"); ocReq.add("z");
+        ocSchema.add("required", ocReq);
+        ocSchema.add("properties", ocProps);
+        ocTool.add("inputSchema", ocSchema);
+        tools.add(ocTool);
+
+        // harvest_vein
+        JsonObject hvTool = new JsonObject();
+        hvTool.addProperty("name", "harvest_vein");
+        hvTool.addProperty("description", "Autonomously mines a contiguous vein of matching blocks (e.g. tree logs, ore veins) up to max_blocks using optimal tools.");
+        JsonObject hvSchema = new JsonObject();
+        hvSchema.addProperty("type", "object");
+        JsonObject hvProps = new JsonObject();
+        JsonObject hvX = new JsonObject(); hvX.addProperty("type", "integer"); hvX.addProperty("description", "Starting X coordinate"); hvProps.add("x", hvX);
+        JsonObject hvY = new JsonObject(); hvY.addProperty("type", "integer"); hvY.addProperty("description", "Starting Y coordinate"); hvProps.add("y", hvY);
+        JsonObject hvZ = new JsonObject(); hvZ.addProperty("type", "integer"); hvZ.addProperty("description", "Starting Z coordinate"); hvProps.add("z", hvZ);
+        JsonObject hvMax = new JsonObject(); hvMax.addProperty("type", "integer"); hvMax.addProperty("description", "Max blocks to harvest (default 16, max 64)"); hvProps.add("max_blocks", hvMax);
+        JsonArray hvReq = new JsonArray(); hvReq.add("x"); hvReq.add("y"); hvReq.add("z");
+        hvSchema.add("required", hvReq);
+        hvSchema.add("properties", hvProps);
+        hvTool.add("inputSchema", hvSchema);
+        tools.add(hvTool);
+
         // deposit_container
         JsonObject dcTool = new JsonObject();
         dcTool.addProperty("name", "deposit_container");

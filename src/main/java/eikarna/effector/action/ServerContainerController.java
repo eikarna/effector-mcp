@@ -39,4 +39,9 @@ public class ServerContainerController implements IContainerController {
     public JsonObject withdrawContainer(JsonObject arguments) {
         return notAvailable();
     }
+
+    @Override
+    public JsonObject openContainer(JsonObject arguments) {
+        return notAvailable();
+    }
 }

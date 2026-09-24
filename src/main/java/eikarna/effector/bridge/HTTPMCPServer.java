@@ -458,6 +458,9 @@ public class HTTPMCPServer {
                 case "respawn" -> {
                     return wrapToolResult(playerActionController.respawn(arguments));
                 }
+                case "harvest_vein" -> {
+                    return wrapToolResult(playerActionController.harvestVein(arguments));
+                }
                 case "baritone_goto" -> {
                     if (baritoneController == null) {
                         JsonObject err = new JsonObject();
@@ -577,6 +580,9 @@ public class HTTPMCPServer {
                 }
                 case "close_container" -> {
                     return wrapToolResult(containerController.closeContainer());
+                }
+                case "open_container" -> {
+                    return wrapToolResult(containerController.openContainer(arguments));
                 }
                 case "deposit_container" -> {
                     return wrapToolResult(containerController.depositContainer(arguments));
